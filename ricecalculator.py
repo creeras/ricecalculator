@@ -4,16 +4,22 @@ class Calculator:
     def __init__(self, master):
         self.master = master
         master.title("Allcalc Rice Calculator")
-        master.geometry("450x620")
+        master.geometry("450x650")
 
-        # 디스플레이 
+
+
+        # 디스플레이 (상태 표시창) 
+        self.display = tk.Entry(master, width=20, justify='right', font=('Arial', 10), relief='flat', bd=5)
+        self.display.grid(row=0, column=0, columnspan=5, padx=0, pady=0, sticky='nsew')
+
+        # 디스플레이 (입력결과 표시창) 
         # 폰트 다운로드 주소 : https://www.dafont.com/ds-digital.font
         self.display = tk.Entry(master, width=20, justify='right', font=('DS-Digital', 72), relief='sunken', bd=5)
-        self.display.grid(row=0, column=0, columnspan=5, padx=10, pady=10, sticky='nsew')
+        self.display.grid(row=1, column=0, columnspan=5, padx=10, pady=10, sticky='nsew')
 
         # 스위치
         self.switch_frame = tk.Frame(master)
-        self.switch_frame.grid(row=1, column=0, columnspan=5, pady=5)
+        self.switch_frame.grid(row=2, column=0, columnspan=5, pady=5)
 
         self.mode_switch = tk.IntVar(value=0)
         self.mode_scale = tk.Scale(self.switch_frame, from_=0, to=2, orient=tk.HORIZONTAL, length=120, showvalue=0,
@@ -46,15 +52,15 @@ class Calculator:
 
         for btn in buttons:
             if (btn[0] == 'AC' or btn[0] == 'C') :  # 'AC' 'C' 버튼에 대해서만 배경색을 빨간색으로 설정
-                tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16), bg='orange').grid(row=btn[1], column=btn[2], sticky='nsew')
+                tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16), bg='orange').grid(row=btn[1]+1, column=btn[2], sticky='nsew')
             elif (btn[0].isdigit() or btn[0] == '.') :  # 숫자 or Dot 버튼에 대해서 배경색을 회색으로 설정
-                tk.Button(master, text=btn[0], width=10, height=2, font=('DS-Digital Bold', 18, 'bold'), bg='grey').grid(row=btn[1], column=btn[2], sticky='nsew')
+                tk.Button(master, text=btn[0], width=10, height=2, font=('DS-Digital Bold', 18, 'bold'), bg='grey').grid(row=btn[1]+1, column=btn[2], sticky='nsew')
             elif len(btn) == 4:  # For the '+' button rowspan
-                tk.Button(master, text=btn[0], width=10, height=4, font=('Arial', 16)).grid(row=btn[1], column=btn[2], rowspan=btn[3], sticky='nsew')
+                tk.Button(master, text=btn[0], width=10, height=4, font=('Arial', 16)).grid(row=btn[1]+1, column=btn[2], rowspan=btn[3], sticky='nsew')
             elif len(btn) == 5:  # For the 'allcalc.org ' button columnspan
-                tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16)).grid(row=btn[1], column=btn[2], rowspan=btn[3], columnspan=btn[4], sticky='nsew')
+                tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16)).grid(row=btn[1]+1, column=btn[2], rowspan=btn[3], columnspan=btn[4], sticky='nsew')
             else:
-                tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16)).grid(row=btn[1], column=btn[2], sticky='nsew')
+                tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16)).grid(row=btn[1]+1, column=btn[2], sticky='nsew')
 
         # Make the grid cells expandable
         for i in range(9):
