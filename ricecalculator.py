@@ -48,7 +48,7 @@ class Calculator:
             if (btn[0] == 'AC' or btn[0] == 'C') :  # 'AC' 'C' 버튼에 대해서만 배경색을 빨간색으로 설정
                 tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16), bg='orange').grid(row=btn[1], column=btn[2], sticky='nsew')
             elif (btn[0].isdigit() or btn[0] == '.') :  # 숫자 or Dot 버튼에 대해서 배경색을 회색으로 설정
-                tk.Button(master, text=btn[0], width=10, height=2, font=('DS-Digital', 18, 'bold'), bg='grey').grid(row=btn[1], column=btn[2], sticky='nsew')
+                tk.Button(master, text=btn[0], width=10, height=2, font=('DS-Digital Bold', 18, 'bold'), bg='grey').grid(row=btn[1], column=btn[2], sticky='nsew')
             elif len(btn) == 4:  # For the '+' button rowspan
                 tk.Button(master, text=btn[0], width=10, height=4, font=('Arial', 16)).grid(row=btn[1], column=btn[2], rowspan=btn[3], sticky='nsew')
             elif len(btn) == 5:  # For the 'allcalc.org ' button columnspan
