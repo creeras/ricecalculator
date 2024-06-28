@@ -114,7 +114,7 @@ class CalculatorEngine:
                 self.current_value = self.multiply(self.previous_value, self.current_value)
             elif self.operation == '÷':
                 self.current_value = self.divide(self.previous_value, self.current_value)
-            self.previous_value = None
+            self.previous_value = self.current_value
             self.operation = None
             self.input_buffer = ""
 
@@ -267,6 +267,7 @@ class Calculator:
             elif self.engine.current_value != 0:
                 self.engine.current_value = float(str(self.engine.current_value)[:-1] or '0')
         elif key in ['+', '-', '÷']:
+            self.state.status_display = f"계산 중 : {self.engine.previous_value} {self.engine.operation}"
             if self.engine.previous_value is None:
                 self.engine.previous_value = self.engine.current_value
             elif self.engine.input_buffer and not self.engine.constant_calculation:
@@ -275,8 +276,9 @@ class Calculator:
             self.engine.last_operand = self.engine.current_value
             self.engine.operation = key
             self.engine.input_buffer = ""
-            self.state.status_display = f"계산 중 : {self.engine.previous_value} {self.engine.operation}"
+            
         elif key in ['×']:
+            self.state.status_display = f"계산 중 : {self.engine.previous_value} {self.engine.operation}"
             if self.engine.previous_value is None:
                 self.engine.previous_value = self.engine.current_value
             elif self.engine.input_buffer and not self.engine.constant_calculation:
@@ -286,14 +288,14 @@ class Calculator:
             self.engine.last_operand = self.engine.previous_value 
             self.engine.operation = key
             self.engine.input_buffer = ""
-            self.state.status_display = f"계산 중 : {self.engine.previous_value} {self.engine.operation}"
+            
         elif key == '=':
             if self.engine.constant_calculation or (self.engine.previous_value is None and self.engine.last_operator):
                 if self.engine.constant_calculation and self.engine.last_operator == '×':
                     # 상수계산중 곱하기(*)에서만 피연산자 순서 맞추어 표시.
-                    self.state.status_display = f"상수계산 : {self.engine.last_other_operand} {self.engine.last_operator} {self.engine.current_value} ="
+                    self.state.status_display = f"상수계산 : {self.engine.last_other_operand} ( {self.engine.last_operator} {self.engine.current_value} ) ="
                 else:
-                    self.state.status_display = f"상수계산 : {self.engine.current_value} {self.engine.last_operator} {self.engine.last_operand} ="
+                    self.state.status_display = f"상수계산 : ( {self.engine.current_value} {self.engine.last_operator} ) {self.engine.last_operand} ="
                 result = self.engine.constant_calculate()
             elif self.engine.previous_value is not None and self.engine.operation: # 이건가?
                 self.engine.last_operand = self.engine.current_value
@@ -378,6 +380,12 @@ class Calculator:
 
         self.status_display.delete(0, tk.END)
         self.status_display.insert(0, self.state.status_display)
+        
+        # 디버깅용 출력문
+        print(f"""display_value: {self.state.display_value}, 
+              current_value: {self.engine.current_value}, 
+              last_operator: {self.engine.last_operator}, 
+              last_operand: {self.engine.last_operand}""")
 
     def adjust_font_size(self):
         current_width = self.display.winfo_width()
