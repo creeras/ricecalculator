@@ -1,6 +1,8 @@
 import tkinter as tk
+from tkinter import font as tkfont
 from typing import List, Union
 import math
+import locale
 
 class CalculatorEngine:
     def __init__(self):
@@ -115,7 +117,8 @@ class CalculatorEngine:
         if self.last_operator in ['+', '-', '÷']:
             result = self.calculate_binary(self.current_value, self.last_operator, self.last_operand)
         elif self.last_operator == '×':
-            result = self.calculate_binary(self.last_other_operand, self.last_operator, self.current_value)
+            result = self.calculate_binary(self.last_other_operand, self.last_operator, self.current_value) # 곱하기만 상수계산 인자위치가 다름.
+            print(f"상수계산 변수확인 last_other_operand: {self.last_other_operand}, var last_operand_value: {self.last_operand}, current.value: {self.current_value}")
         self.current_value = result
         return result
 
@@ -142,8 +145,9 @@ class CalculatorState:
         if self.engine.input_buffer:
             self.display_value = self.engine.input_buffer
         else:
-            self.display_value = self.engine.format_number(self.engine.current_value)
-        
+            number = self.engine.format_number(self.engine.current_value)
+            self.display_value = number  # 천단위 구분자를 추가하지 않고 그대로 저장
+
         if self.engine.operation: 
             self.status_display = f"{self.engine.previous_value} {self.engine.operation}"
 
@@ -157,13 +161,16 @@ class Calculator:
         self.state = CalculatorState(self.engine)
 
         # Status display
+        # Main display (Entry 대신 Text 위젯 사용)
 
         self.status_display = tk.Entry(master, width=20, justify='right', font=('Arial', 10), relief='flat', bd=5)
         self.status_display.grid(row=0, column=0, columnspan=5, padx=0, pady=0, sticky='nsew')
 
         # Main display
-        self.display = tk.Entry(master, width=20, justify='right', font=('DS-Digital', 72), relief='sunken', bd=5)
+        self.display = tk.Text(master, height=1, width=20, font=('DS-Digital', 72), relief='sunken', bd=5)
         self.display.grid(row=1, column=0, columnspan=5, padx=10, pady=10, sticky='nsew')
+        self.display.tag_configure("right", justify='right')
+        self.display.tag_configure("separator", foreground='#888888')  # 연한 회색
 
         # Switches
         self.switch_frame = tk.Frame(master)
@@ -268,14 +275,16 @@ class Calculator:
             self.state.status_display = f"{self.engine.previous_value} {self.engine.operation}"
         elif key == '=':
             if self.engine.constant_calculation or (self.engine.previous_value is None and self.engine.last_operator):
-                print(f'key=if : {self.state.status_display}')
-                self.state.status_display = f"{self.engine.current_value} {self.engine.last_operator} {self.engine.last_operand} ="
+                if self.engine.constant_calculation and self.engine.last_operator == '×':
+                    # 상수계산중 곱하기(*)에서만 피연산자 순서 맞추어 표시.
+                    self.state.status_display = f"{self.engine.last_other_operand} {self.engine.last_operator} {self.engine.current_value} ="
+                else:
+                    self.state.status_display = f"{self.engine.current_value} {self.engine.last_operator} {self.engine.last_operand} ="
                 result = self.engine.constant_calculate()
             elif self.engine.previous_value is not None and self.engine.operation:
                 self.engine.last_operand = self.engine.current_value
                 self.engine.last_operator = self.engine.operation
                 self.state.status_display = f"{self.engine.previous_value} {self.engine.operation} {self.engine.current_value} =" 
-                print(f'key=elif : {self.state.status_display}')
                 self.engine.calculate()
                 self.engine.previous_value = None
                 self.engine.operation = None
@@ -323,10 +332,27 @@ class Calculator:
 
     def update_display(self):
         self.state.update_display()
-        self.display.delete(0, tk.END)
-        self.display.insert(0, self.state.display_value)
+        self.display.delete('1.0', tk.END)
+        
+        display_value = self.state.display_value
+        parts = display_value.split('.')
+        integer_part = parts[0]
+        decimal_part = parts[1] if len(parts) > 1 else ""
+
+        # 정수 부분에 천단위 구분자 추가 및 색상 지정
+        formatted_integer = ""
+        for i, char in enumerate(reversed(integer_part)):
+            if i > 0 and i % 3 == 0:
+                self.display.insert('1.0', ',', 'separator')
+            self.display.insert('1.0', char)
+
+        # 소수점 및 소수 부분 추가
+        if decimal_part:
+            self.display.insert(tk.END, '.' + decimal_part)
+
+        self.display.tag_add("right", "1.0", "end")
+
         self.status_display.delete(0, tk.END)
-        print(f'update_display() : {self.state.status_display}')
         self.status_display.insert(0, self.state.status_display)
 
 
