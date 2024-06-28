@@ -1,7 +1,7 @@
 # ricecalculator
 쌀집 계산기 구현... 하려고 하는데
 
-![image](https://github.com/creeras/ricecalculator/assets/4322821/c8ed7519-a2b2-439e-90c9-64da3e51a074)
+![image](https://github.com/creeras/ricecalculator/assets/4322821/19074d81-6941-4bd2-a965-09729c338e97)
 * 폰트 다운로드 주소 : https://www.dafont.com/ds-digital.font
 
 ## ToDo 리스트
