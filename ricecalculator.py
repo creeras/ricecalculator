@@ -7,6 +7,7 @@ import locale
 class CalculatorEngine:
     def __init__(self):
         self.memory = 0
+        self.memory_gt = 0
         self.current_value = 0
         self.previous_value = None
         self.operation = None
@@ -81,8 +82,12 @@ class CalculatorEngine:
     def memory_recall(self):
         return self.memory
 
+    def memory_gt_recall(self):
+        return self.memory_gt
+
     def memory_clear(self):
         self.memory = 0
+        self.memory_gt = 0
         self.current_value = 0
         self.previous_value = None
         self.operation = None
@@ -233,6 +238,10 @@ class Calculator:
         for i in range(5):
             master.grid_columnconfigure(i, weight=1)
 
+        self.engine.clear()
+        self.engine.memory_clear()
+        self.state.status_display = f"【AC】화면 지우기 & 메모리 초기화" 
+
         self.update_display()
 
     def click(self, key: str):
@@ -266,7 +275,7 @@ class Calculator:
             self.engine.last_operand = self.engine.current_value
             self.engine.operation = key
             self.engine.input_buffer = ""
-            self.state.status_display = f"{self.engine.previous_value} {self.engine.operation}"
+            self.state.status_display = f"계산 중 : {self.engine.previous_value} {self.engine.operation}"
         elif key in ['×']:
             if self.engine.previous_value is None:
                 self.engine.previous_value = self.engine.current_value
@@ -277,16 +286,16 @@ class Calculator:
             self.engine.last_operand = self.engine.previous_value 
             self.engine.operation = key
             self.engine.input_buffer = ""
-            self.state.status_display = f"{self.engine.previous_value} {self.engine.operation}"
+            self.state.status_display = f"계산 중 : {self.engine.previous_value} {self.engine.operation}"
         elif key == '=':
             if self.engine.constant_calculation or (self.engine.previous_value is None and self.engine.last_operator):
                 if self.engine.constant_calculation and self.engine.last_operator == '×':
                     # 상수계산중 곱하기(*)에서만 피연산자 순서 맞추어 표시.
-                    self.state.status_display = f"{self.engine.last_other_operand} {self.engine.last_operator} {self.engine.current_value} ="
+                    self.state.status_display = f"상수계산 : {self.engine.last_other_operand} {self.engine.last_operator} {self.engine.current_value} ="
                 else:
-                    self.state.status_display = f"{self.engine.current_value} {self.engine.last_operator} {self.engine.last_operand} ="
+                    self.state.status_display = f"상수계산 : {self.engine.current_value} {self.engine.last_operator} {self.engine.last_operand} ="
                 result = self.engine.constant_calculate()
-            elif self.engine.previous_value is not None and self.engine.operation:
+            elif self.engine.previous_value is not None and self.engine.operation: # 이건가?
                 self.engine.last_operand = self.engine.current_value
                 self.engine.last_operator = self.engine.operation
                 self.state.status_display = f"{self.engine.previous_value} {self.engine.operation} {self.engine.current_value} =" 
@@ -294,13 +303,19 @@ class Calculator:
                 self.engine.previous_value = None
                 self.engine.operation = None
             self.engine.constant_calculation = True
+            self.engine.memory_gt += self.engine.current_value # GT 메모리에 더하기
+        elif key == 'GT':
+            self.state.status_display = f"메모리 GT 를 불러옵니다."
+            self.engine.current_value = self.engine.memory_gt_recall()
+            self.engine.input_buffer = str(self.engine.current_value)
+
         elif key == 'C':
             self.engine.clear()
-            self.state.status_display = f"Display Cleared" 
+            self.state.status_display = f"【C】 화면 지우기" 
         elif key == 'AC':
             self.engine.clear()
             self.engine.memory_clear()
-            self.state.status_display = f"Display Cleared & Memory Cleared" 
+            self.state.status_display = f"【AC】화면 지우기 & 메모리 초기화" 
         elif key == '+/-':
             self.engine.change_sign()
         elif key == '%':
@@ -311,14 +326,16 @@ class Calculator:
             self.state.status_display = f"√{self.engine.current_value}"
         elif key == 'M+':
             self.engine.memory_add(self.engine.current_value)
-            self.state.status_display = f"M = {self.engine.memory} = {self.engine.memory - self.engine.current_value} + {self.engine.current_value}"
+            self.state.status_display = f"메모리 M = {self.engine.memory} = {self.engine.memory - self.engine.current_value} + {self.engine.current_value}"
         elif key == 'M-':
             self.engine.memory_subtract(self.engine.current_value)
-            self.state.status_display = f"M = {self.engine.memory} = {self.engine.memory + self.engine.current_value} - {self.engine.current_value}"
+            self.state.status_display = f"메모리 M = {self.engine.memory} = {self.engine.memory + self.engine.current_value} - {self.engine.current_value}"
         elif key == 'MR':
+            self.state.status_display = f"메모리 M 을 불러옵니다."
             self.engine.current_value = self.engine.memory_recall()
             self.engine.input_buffer = str(self.engine.current_value)
         elif key == 'MC':
+            self.state.status_display = f"메모리 M = 0 초기화."
             self.engine.memory_clear()
         
         self.engine.last_button = key
