@@ -49,7 +49,6 @@ class CalculatorEngine:
         self.last_button = None
 
     def all_clear(self):
-        self.clear(self)
         self.memory = 0
         self.memory_gt = 0
         self.current_value = 0
