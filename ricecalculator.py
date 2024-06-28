@@ -204,33 +204,34 @@ class Calculator:
         for i, label in enumerate(self.decimal_labels):
             tk.Label(self.switch_frame, text=label).place(x=150 + i * 48, y=20)
 
+        self.upperrows = 2
         # Buttons
         buttons = [
-            ('allcalc.org', 2, 0, 1, 3), ('TAX-', 2, 3), ('TAX+', 2, 4),  
-            ('M/EX', 3, 0), ('%', 3, 1), ('√', 3, 2), ('▶', 3, 3), ('GT', 3, 4), 
-            ('MC', 4, 0), ('MR', 4, 1), ('M-', 4, 2), ('M+', 4, 3), ('÷', 4, 4), 
-            ('+/-', 5, 0), ('7', 5, 1), ('8', 5, 2), ('9', 5, 3),  ('×', 5, 4),
-            ('C', 6, 0), ('4', 6, 1), ('5', 6, 2), ('6', 6, 3), ('-', 6, 4),
-            ('AC', 7, 0), ('1', 7, 1), ('2', 7, 2), ('3', 7, 3), ('+', 7, 4, 2),
-            ('0', 8, 0), ('00', 8, 1), ('.', 8, 2), ('=', 8, 3)
+            ('allcalc.org', 0, 0, 1, 3), ('TAX-', 0, 3), ('TAX+', 0, 4),  
+            ('M/EX', 1, 0), ('%', 1, 1), ('√', 1, 2), ('▶', 1, 3), ('GT', 1, 4), 
+            ('MC', 2, 0), ('MR', 2, 1), ('M-', 2, 2), ('M+', 2, 3), ('÷', 2, 4), 
+            ('+/-', 3, 0), ('7', 3, 1), ('8', 3, 2), ('9', 3, 3),  ('×', 3, 4),
+            ('C', 4, 0), ('4', 4, 1), ('5', 4, 2), ('6', 4, 3), ('-', 4, 4),
+            ('AC', 5, 0), ('1', 5, 1), ('2', 5, 2), ('3', 5, 3), ('+', 5, 4, 2),
+            ('0', 6, 0), ('00', 6, 1), ('.', 6, 2), ('=', 6, 3)
         ]
 
         for btn in buttons:
             if btn[0] in ['AC', 'C']:
                 tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16), bg='orange', 
-                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+1, column=btn[2], sticky='nsew')
+                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+self.upperrows, column=btn[2], sticky='nsew')
             elif btn[0].isdigit() or btn[0] == '.':
                 tk.Button(master, text=btn[0], width=10, height=2, font=('DS-Digital Bold', 18, 'bold'), bg='grey',
-                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+1, column=btn[2], sticky='nsew')
+                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+self.upperrows, column=btn[2], sticky='nsew')
             elif len(btn) == 4:  # For the '+' button rowspan
                 tk.Button(master, text=btn[0], width=10, height=4, font=('Arial', 16),
-                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+1, column=btn[2], rowspan=btn[3], sticky='nsew')
+                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+self.upperrows, column=btn[2], rowspan=btn[3], sticky='nsew')
             elif len(btn) == 5:  # For the 'allcalc.org ' button columnspan
                 tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16),
-                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+1, column=btn[2], rowspan=btn[3], columnspan=btn[4], sticky='nsew')
+                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+self.upperrows, column=btn[2], rowspan=btn[3], columnspan=btn[4], sticky='nsew')
             else:
                 tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16),
-                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+1, column=btn[2], sticky='nsew')
+                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+self.upperrows, column=btn[2], sticky='nsew')
 
         # Make the grid cells expandable
         for i in range(9):
