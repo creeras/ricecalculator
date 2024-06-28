@@ -8,8 +8,8 @@ class CalculatorEngine:
         self.current_value = 0
         self.previous_value = None
         self.operation = None
-        self.mode = 'F'  # F, Cut, or 5/4
-        self.number_mode = 4  # 4, 3, 2, 1, 0, or Add2
+        self.rounding_mode = 'F'  # F, Cut, or 5/4
+        self.decimal_places = 4  # 4, 3, 2, 1, 0, or Add2        self.number_mode = 4  # 4, 3, 2, 1, 0, or Add2
         self.input_buffer = ""
         self.last_button = None
         self.last_operand = None
@@ -17,6 +17,26 @@ class CalculatorEngine:
         self.last_other_operand = None
         self.constant_calculation = False
 
+    def set_rounding_mode(self, mode: str):
+        self.rounding_mode = mode
+
+    def set_decimal_places(self, places: Union[int, str]):
+        self.decimal_places = places
+
+    def format_number(self, number: float) -> str:
+        if self.rounding_mode == 'F':
+            return f"{number:.14g}"
+        
+        if self.decimal_places == 'Add2':
+            places = 2
+        else:
+            places = int(self.decimal_places)
+        
+        if self.rounding_mode == 'Cut':
+            return f"{math.floor(number * 10**places) / 10**places:.{places}f}"
+        elif self.rounding_mode == '5/4':
+            return f"{round(number, places):.{places}f}"
+        
     def clear(self):
         self.current_value = 0
         self.previous_value = None
@@ -61,6 +81,15 @@ class CalculatorEngine:
 
     def memory_clear(self):
         self.memory = 0
+        self.current_value = 0
+        self.previous_value = None
+        self.operation = None
+        self.input_buffer = ""
+        self.last_button = None
+        self.last_operand = None
+        self.last_operator = None
+        self.last_other_operand = None
+        self.constant_calculation = False
 
     def set_mode(self, mode: str):
         self.mode = mode
@@ -107,23 +136,16 @@ class CalculatorState:
     def __init__(self, engine: CalculatorEngine):
         self.engine = engine
         self.display_value = "0"
-        self.status_display = ""
+        self.status_display = "init"
 
     def update_display(self):
         if self.engine.input_buffer:
             self.display_value = self.engine.input_buffer
         else:
-            if self.engine.mode == 'F':
-                self.display_value = f"{self.engine.current_value:.0f}"
-            elif self.engine.mode == 'Cut':
-                self.display_value = f"{self.engine.current_value:.2f}"
-            elif self.engine.mode == '5/4':
-                self.display_value = f"{self.engine.current_value:.4f}"
+            self.display_value = self.engine.format_number(self.engine.current_value)
         
-        if self.engine.operation:
+        if self.engine.operation: 
             self.status_display = f"{self.engine.previous_value} {self.engine.operation}"
-        else:
-            self.status_display = ""
 
 class Calculator:
     def __init__(self, master):
@@ -135,6 +157,7 @@ class Calculator:
         self.state = CalculatorState(self.engine)
 
         # Status display
+
         self.status_display = tk.Entry(master, width=20, justify='right', font=('Arial', 10), relief='flat', bd=5)
         self.status_display.grid(row=0, column=0, columnspan=5, padx=0, pady=0, sticky='nsew')
 
@@ -146,22 +169,22 @@ class Calculator:
         self.switch_frame = tk.Frame(master)
         self.switch_frame.grid(row=2, column=0, columnspan=5, pady=5)
 
-        self.mode_switch = tk.IntVar(value=0)
-        self.mode_scale = tk.Scale(self.switch_frame, from_=0, to=2, orient=tk.HORIZONTAL, length=120, showvalue=0,
-                                   tickinterval=1, resolution=1, variable=self.mode_switch, command=self.change_mode)
-        self.mode_scale.pack(side=tk.LEFT, padx=5)
+        self.rounding_switch = tk.IntVar(value=0)
+        self.rounding_scale = tk.Scale(self.switch_frame, from_=0, to=2, orient=tk.HORIZONTAL, length=120, showvalue=0,
+                                   tickinterval=1, resolution=1, variable=self.rounding_switch, command=self.change_rounding_mode)
+        self.rounding_scale.pack(side=tk.LEFT, padx=5)
         
-        self.mode_labels = ["F", "Cut ", " 5/4"]
-        for i, label in enumerate(self.mode_labels):
+        self.rounding_labels = ["F", "Cut ", " 5/4"]
+        for i, label in enumerate(self.rounding_labels):
             tk.Label(self.switch_frame, text=label).place(x=18 + i * 38, y=20)
 
-        self.number_switch = tk.IntVar(value=0)
-        self.number_scale = tk.Scale(self.switch_frame, from_=0, to=5, orient=tk.HORIZONTAL, length=280, showvalue=0,
-                                     tickinterval=1, resolution=1, variable=self.number_switch, command=self.change_number_mode)
-        self.number_scale.pack(side=tk.LEFT, padx=5)
+        self.decimal_switch = tk.IntVar(value=0)
+        self.decimal_scale = tk.Scale(self.switch_frame, from_=0, to=5, orient=tk.HORIZONTAL, length=280, showvalue=0,
+                                     tickinterval=1, resolution=1, variable=self.decimal_switch, command=self.change_decimal_places)
+        self.decimal_scale.pack(side=tk.LEFT, padx=5)
         
-        self.number_labels = [" 4", " 3 ", " 2 ", " 1 ", " 0 ", "Add2"]
-        for i, label in enumerate(self.number_labels):
+        self.decimal_labels = [" 4", " 3 ", " 2 ", " 1 ", " 0 ", "Add2"]
+        for i, label in enumerate(self.decimal_labels):
             tk.Label(self.switch_frame, text=label).place(x=150 + i * 48, y=20)
 
         # Buttons
@@ -230,21 +253,25 @@ class Calculator:
             self.state.status_display = f"{self.engine.previous_value} {self.engine.operation}"
         elif key == '=':
             if self.engine.constant_calculation or (self.engine.previous_value is None and self.engine.last_operator):
-                result = self.engine.constant_calculate()
+                print(f'key=if : {self.state.status_display}')
                 self.state.status_display = f"{self.engine.current_value} {self.engine.last_operator} {self.engine.last_operand} ="
+                result = self.engine.constant_calculate()
             elif self.engine.previous_value is not None and self.engine.operation:
                 self.engine.last_operand = self.engine.current_value
                 self.engine.last_operator = self.engine.operation
+                self.state.status_display = f"{self.engine.previous_value} {self.engine.operation} {self.engine.current_value} =" 
+                print(f'key=elif : {self.state.status_display}')
                 self.engine.calculate()
-                self.state.status_display = f"{self.engine.previous_value} {self.engine.operation} {self.engine.current_value} ="
                 self.engine.previous_value = None
                 self.engine.operation = None
             self.engine.constant_calculation = True
         elif key == 'C':
             self.engine.clear()
+            self.state.status_display = f"Display Cleared" 
         elif key == 'AC':
             self.engine.clear()
             self.engine.memory_clear()
+            self.state.status_display = f"Display Cleared & Memory Cleared" 
         elif key == '+/-':
             self.engine.change_sign()
         elif key == '%':
@@ -266,15 +293,17 @@ class Calculator:
             self.engine.memory_clear()
         
         self.engine.last_button = key
+        print(f"before update: {self.state.status_display}")
         self.update_display()
 
-    def change_mode(self, value):
+    def change_rounding_mode(self, value):
         modes = ['F', 'Cut', '5/4']
-        self.engine.set_mode(modes[int(value)])
+        self.engine.set_rounding_mode(modes[int(value)])
         self.update_display()
 
-    def change_number_mode(self, value):
-        self.engine.set_number_mode(4 - int(value))
+    def change_decimal_places(self, value):
+        places = ['4', '3', '2', '1', '0', 'Add2']
+        self.engine.set_decimal_places(places[int(value)])
         self.update_display()
 
     def update_display(self):
@@ -282,7 +311,9 @@ class Calculator:
         self.display.delete(0, tk.END)
         self.display.insert(0, self.state.display_value)
         self.status_display.delete(0, tk.END)
+        print(f'update_display() : {self.state.status_display}')
         self.status_display.insert(0, self.state.status_display)
+
 
 def main():
     root = tk.Tk()
