@@ -167,7 +167,7 @@ class Calculator:
 
         # Main display
         self.display_height = 1  # 고정 높이 설정
-        self.display = tk.Text(master, height=1, width=20, font=('DS-Digital', 72), relief='sunken', bd=5)
+        self.display = tk.Text(master, height=self.display_height, width=20, font=('DS-Digital', 72), relief='sunken', bd=5)
         self.display.grid(row=1, column=0, columnspan=5, padx=10, pady=10, sticky='nsew')
         self.display.configure(height=self.display_height)
         self.display.tag_configure("right", justify='right')
