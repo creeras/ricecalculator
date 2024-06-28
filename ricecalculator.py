@@ -164,7 +164,7 @@ class Calculator:
     def __init__(self, master):
         self.master = master
         master.title("Allcalc Rice Calculator")
-        master.geometry("500x650")
+        master.geometry("700x650")
 
         self.engine = CalculatorEngine()
         self.state = CalculatorState(self.engine)
