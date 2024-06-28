@@ -228,8 +228,23 @@ class Calculator:
             if self.engine.last_button in ['+', '-', '×', '÷', '=', '√'] or self.engine.constant_calculation:
                 self.engine.input_buffer = ""
                 self.engine.constant_calculation = False
+            if key == '.' and '.' in self.engine.input_buffer:
+                return  # 이미 소숫점이 있으면 무시
             self.engine.input_buffer += key
-            self.engine.current_value = float(self.engine.input_buffer)
+            try:
+                self.engine.current_value = float(self.engine.input_buffer)
+            except ValueError:
+                # 잘못된 입력 처리 (예: 소숫점만 입력된 경우)
+                self.engine.input_buffer = self.engine.input_buffer[:-1]  # 마지막 문자 제거
+        elif key == '▶':
+            if self.engine.input_buffer:
+                self.engine.input_buffer = self.engine.input_buffer[:-1]  # 마지막 문자 제거
+                if self.engine.input_buffer:
+                    self.engine.current_value = float(self.engine.input_buffer)
+                else:
+                    self.engine.current_value = 0
+            elif self.engine.current_value != 0:
+                self.engine.current_value = float(str(self.engine.current_value)[:-1] or '0')
         elif key in ['+', '-', '÷']:
             if self.engine.previous_value is None:
                 self.engine.previous_value = self.engine.current_value
