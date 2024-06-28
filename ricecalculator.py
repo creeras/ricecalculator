@@ -118,7 +118,6 @@ class CalculatorEngine:
             result = self.calculate_binary(self.current_value, self.last_operator, self.last_operand)
         elif self.last_operator == '×':
             result = self.calculate_binary(self.last_other_operand, self.last_operator, self.current_value) # 곱하기만 상수계산 인자위치가 다름.
-            print(f"상수계산 변수확인 last_other_operand: {self.last_other_operand}, var last_operand_value: {self.last_operand}, current.value: {self.current_value}")
         self.current_value = result
         return result
 
@@ -155,7 +154,7 @@ class Calculator:
     def __init__(self, master):
         self.master = master
         master.title("Allcalc Rice Calculator")
-        master.geometry("450x650")
+        master.geometry("500x650")
 
         self.engine = CalculatorEngine()
         self.state = CalculatorState(self.engine)
@@ -167,11 +166,17 @@ class Calculator:
         self.status_display.grid(row=0, column=0, columnspan=5, padx=0, pady=0, sticky='nsew')
 
         # Main display
+        self.display_height = 1  # 고정 높이 설정
         self.display = tk.Text(master, height=1, width=20, font=('DS-Digital', 72), relief='sunken', bd=5)
         self.display.grid(row=1, column=0, columnspan=5, padx=10, pady=10, sticky='nsew')
+        self.display.configure(height=self.display_height)
         self.display.tag_configure("right", justify='right')
         self.display.tag_configure("separator", foreground='#888888')  # 연한 회색
 
+        # 초기 폰트 설정
+        self.display_font = tkfont.Font(family='DS-Digital', size=72)
+        self.display.configure(font=self.display_font)
+        
         # Switches
         self.switch_frame = tk.Frame(master)
         self.switch_frame.grid(row=2, column=0, columnspan=5, pady=5)
@@ -336,11 +341,10 @@ class Calculator:
         
         display_value = self.state.display_value
         parts = display_value.split('.')
-        integer_part = parts[0]
+        integer_part = parts[0].lstrip('0') or '0'  # 선행 zeros 제거, 비어있으면 '0'
         decimal_part = parts[1] if len(parts) > 1 else ""
 
         # 정수 부분에 천단위 구분자 추가 및 색상 지정
-        formatted_integer = ""
         for i, char in enumerate(reversed(integer_part)):
             if i > 0 and i % 3 == 0:
                 self.display.insert('1.0', ',', 'separator')
@@ -352,9 +356,30 @@ class Calculator:
 
         self.display.tag_add("right", "1.0", "end")
 
+        # 글자 크기 조정
+        self.adjust_font_size()
+
         self.status_display.delete(0, tk.END)
         self.status_display.insert(0, self.state.status_display)
 
+    def adjust_font_size(self):
+        current_width = self.display.winfo_width()
+        text_width = self.display_font.measure(self.display.get('1.0', 'end-1c'))
+        
+        # 텍스트가 디스플레이 너비를 초과하는 경우 폰트 크기 조정
+        if text_width > current_width:
+            current_size = self.display_font['size']
+            while text_width > current_width and current_size > 10:
+                current_size -= 1
+                self.display_font.configure(size=current_size)
+                text_width = self.display_font.measure(self.display.get('1.0', 'end-1c'))
+        else:
+            # 텍스트가 디스플레이 너비보다 작은 경우 폰트 크기를 원래대로 복원
+            self.display_font.configure(size=72)
+        
+        self.display.configure(font=self.display_font)
+        # 높이 고정
+        self.display.configure(height=self.display_height)
 
 def main():
     root = tk.Tk()
