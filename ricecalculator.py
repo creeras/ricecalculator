@@ -19,6 +19,7 @@ class CalculatorEngine:
         self.last_operator = None
         self.last_other_operand = None
         self.constant_calculation = False
+        self.count_click = 0
 
     def set_rounding_mode(self, mode: str):
         self.rounding_mode = mode
@@ -46,6 +47,21 @@ class CalculatorEngine:
         self.operation = None
         self.input_buffer = ""
         self.last_button = None
+
+    def all_clear(self):
+        self.clear(self)
+        self.memory = 0
+        self.memory_gt = 0
+        self.current_value = 0
+        self.previous_value = None
+        self.operation = None
+        self.input_buffer = ""
+        self.last_button = None
+        self.last_operand = None
+        self.last_operator = None
+        self.last_other_operand = None
+        self.constant_calculation = False
+        self.count_click = 0   
 
     def add(self, a: float, b: float):
         return a + b
@@ -83,20 +99,10 @@ class CalculatorEngine:
         return self.memory
 
     def memory_gt_recall(self):
-        return self.memory_gt
+        return self.memory_gt    
 
     def memory_clear(self):
         self.memory = 0
-        self.memory_gt = 0
-        self.current_value = 0
-        self.previous_value = None
-        self.operation = None
-        self.input_buffer = ""
-        self.last_button = None
-        self.last_operand = None
-        self.last_operator = None
-        self.last_other_operand = None
-        self.constant_calculation = False
 
     def set_mode(self, mode: str):
         self.mode = mode
@@ -246,6 +252,8 @@ class Calculator:
         self.update_display()
 
     def click(self, key: str):
+        self.engine.count_click += 1
+        print(f"Total clicks: {self.engine.count_click}")
         if key.isdigit() or key == '.':
             if self.engine.last_button in ['+', '-', '×', '÷', '=', '√'] or self.engine.constant_calculation:
                 self.engine.input_buffer = ""
@@ -316,8 +324,7 @@ class Calculator:
             self.engine.clear()
             self.state.status_display = f"【C】 화면 지우기" 
         elif key == 'AC':
-            self.engine.clear()
-            self.engine.memory_clear()
+            self.engine.all_clear()
             self.state.status_display = f"【AC】화면 지우기 & 메모리 초기화" 
         elif key == '+/-':
             self.engine.change_sign()
