@@ -293,9 +293,9 @@ class Calculator:
             if self.engine.constant_calculation or (self.engine.previous_value is None and self.engine.last_operator):
                 if self.engine.constant_calculation and self.engine.last_operator == '×':
                     # 상수계산중 곱하기(*)에서만 피연산자 순서 맞추어 표시.
-                    self.state.status_display = f"상수계산 : {self.engine.last_other_operand} ( {self.engine.last_operator} {self.engine.current_value} ) ="
+                    self.state.status_display = f"상수계산 : ( {self.engine.last_other_operand} {self.engine.last_operator} ) {self.engine.current_value} ="
                 else:
-                    self.state.status_display = f"상수계산 : ( {self.engine.current_value} {self.engine.last_operator} ) {self.engine.last_operand} ="
+                    self.state.status_display = f"상수계산 : {self.engine.current_value} ( {self.engine.last_operator} {self.engine.last_operand} ) ="
                 result = self.engine.constant_calculate()
             elif self.engine.previous_value is not None and self.engine.operation: # 이건가?
                 self.engine.last_operand = self.engine.current_value
