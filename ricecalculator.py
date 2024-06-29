@@ -8,7 +8,7 @@ from decimal import Decimal, getcontext
 
 class CalculatorEngine:
     def __init__(self):
-        getcontext().prec = 15  # 정밀도 설정
+        getcontext().prec = 14  # 정밀도 설정
         self.memory = Decimal('0')
         self.memory_gt = Decimal('0')
         self.current_value = Decimal('0')
@@ -23,6 +23,9 @@ class CalculatorEngine:
         self.last_other_operand = None
         self.constant_calculation = False
         self.count_click = 0
+
+    def set_precision_mode(self, mode: str):
+        getcontext().prec = int(mode)
 
     def set_rounding_mode(self, mode: str):
         self.rounding_mode = mode
@@ -191,18 +194,27 @@ class Calculator:
         self.display_font = tkfont.Font(family='DS-Digital', size=72)
         self.display.configure(font=self.display_font)
         
-        # Switches
+        # Switches 3종 : 정밀도 / 라운딩 / 데시멀
         self.switch_frame = tk.Frame(master)
         self.switch_frame.grid(row=2, column=0, columnspan=5, pady=5)
+
+        self.precision_switch = tk.IntVar(value=3)
+        self.rounding_scale = tk.Scale(self.switch_frame, from_=0, to=2, orient=tk.HORIZONTAL, length=120, showvalue=0,
+                                   tickinterval=1, resolution=1, variable=self.precision_switch, command=self.change_precision_mode)
+        self.rounding_scale.pack(side=tk.LEFT, padx=5)        
+
+        self.rounding_labels = ["10 ", " 12 ", "  14 "]
+        for i, label in enumerate(self.rounding_labels):
+            tk.Label(self.switch_frame, text=label).place(x=13 + i * 38, y=20)
 
         self.rounding_switch = tk.IntVar(value=0)
         self.rounding_scale = tk.Scale(self.switch_frame, from_=0, to=2, orient=tk.HORIZONTAL, length=120, showvalue=0,
                                    tickinterval=1, resolution=1, variable=self.rounding_switch, command=self.change_rounding_mode)
         self.rounding_scale.pack(side=tk.LEFT, padx=5)
         
-        self.rounding_labels = ["F", "Cut ", " 5/4"]
+        self.rounding_labels = [" F", "Cut ", " 5/4"]
         for i, label in enumerate(self.rounding_labels):
-            tk.Label(self.switch_frame, text=label).place(x=18 + i * 38, y=20)
+            tk.Label(self.switch_frame, text=label).place(x=150 + i * 38, y=20)
 
         self.decimal_switch = tk.IntVar(value=0)
         self.decimal_scale = tk.Scale(self.switch_frame, from_=0, to=5, orient=tk.HORIZONTAL, length=280, showvalue=0,
@@ -211,7 +223,7 @@ class Calculator:
         
         self.decimal_labels = [" 4", " 3 ", " 2 ", " 1 ", " 0 ", "Add2"]
         for i, label in enumerate(self.decimal_labels):
-            tk.Label(self.switch_frame, text=label).place(x=150 + i * 48, y=20)
+            tk.Label(self.switch_frame, text=label).place(x=285 + i * 48, y=20)
 
         self.upperrows = 3
         # Buttons
@@ -324,7 +336,9 @@ class Calculator:
                 self.engine.calculate()
                 self.engine.previous_value = None
                 self.engine.operation = None
-            self.engine.constant_calculation = True
+            
+            if self.engine.last_operator :
+                self.engine.constant_calculation = True
             self.engine.memory_gt += Decimal(str(self.engine.current_value))  # GT 메모리에 더하기
 
         elif key == 'GT':
@@ -364,14 +378,19 @@ class Calculator:
         print(f"before update: {self.state.status_display}")
         self.update_display()
 
+    def change_precision_mode(self, value):
+        modes = ['10', '12', '14']
+        self.engine.set_precision_mode(modes[int(value)])
+        self.update_display()
+
     def change_rounding_mode(self, value):
         modes = ['F', 'Cut', '5/4']
         self.engine.set_rounding_mode(modes[int(value)])
         self.update_display()
 
     def change_decimal_places(self, value):
-        places = ['4', '3', '2', '1', '0', 'Add2']
-        self.engine.set_decimal_places(places[int(value)])
+        modes = ['4', '3', '2', '1', '0', 'Add2']
+        self.engine.set_decimal_places(modes[int(value)])
         self.update_display()
 
     def update_display(self):
