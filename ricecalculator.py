@@ -3,12 +3,15 @@ from tkinter import font as tkfont
 from typing import List, Union
 import math
 import locale
+import decimal
+from decimal import Decimal, getcontext
 
 class CalculatorEngine:
     def __init__(self):
-        self.memory = 0
-        self.memory_gt = 0
-        self.current_value = 0
+        getcontext().prec = 15  # 정밀도 설정
+        self.memory = Decimal('0')
+        self.memory_gt = Decimal('0')
+        self.current_value = Decimal('0')
         self.previous_value = None
         self.operation = None
         self.rounding_mode = 'F'  # F, Cut, or 5/4
@@ -27,9 +30,9 @@ class CalculatorEngine:
     def set_decimal_places(self, places: Union[int, str]):
         self.decimal_places = places
 
-    def format_number(self, number: float) -> str:
+    def format_number(self, number: Decimal) -> str:
         if self.rounding_mode == 'F':
-            return f"{number:.14g}"
+            return f"{number:.14f}".rstrip('0').rstrip('.')
         
         if self.decimal_places == 'Add2':
             places = 2
@@ -37,9 +40,9 @@ class CalculatorEngine:
             places = int(self.decimal_places)
         
         if self.rounding_mode == 'Cut':
-            return f"{math.floor(number * 10**places) / 10**places:.{places}f}"
+            return f"{number.quantize(Decimal('1.' + '0' * places)):.{places}f}"
         elif self.rounding_mode == '5/4':
-            return f"{round(number, places):.{places}f}"
+            return f"{number.quantize(Decimal('1.' + '0' * places)):.{places}f}"
         
     def clear(self):
         self.current_value = 0
@@ -62,36 +65,37 @@ class CalculatorEngine:
         self.constant_calculation = False
         self.count_click = 0   
 
-    def add(self, a: float, b: float):
+    # 모든 연산 메서드(add, subtract, multiply, divide 등)를 Decimal 연산으로 변경
+    def add(self, a: Decimal, b: Decimal) -> Decimal:
         return a + b
 
-    def subtract(self, a: float, b: float):
+    def subtract(self, a: Decimal, b: Decimal) -> Decimal:
         return a - b
 
-    def multiply(self, a: float, b: float):
+    def multiply(self, a: Decimal, b: Decimal) -> Decimal:
         return a * b
 
-    def divide(self, a: float, b: float):
+    def divide(self, a: Decimal, b: Decimal) -> Decimal:
         if b != 0:
             return a / b
         else:
             raise ValueError("Cannot divide by zero")
 
-    def square_root(self, value: float):
+    def square_root(self, value: Decimal):
         return math.sqrt(value)
 
     def percentage(self):
-        self.current_value /= 100
+        self.current_value = self.current_value / Decimal('100')
 
     def change_sign(self):
         if self.input_buffer:
-            self.input_buffer = str(-float(self.input_buffer))
+            self.input_buffer = str(-Decimal(self.input_buffer))
         self.current_value = -self.current_value
 
-    def memory_add(self, value: float):
+    def memory_add(self, value: Decimal):
         self.memory += value
 
-    def memory_subtract(self, value: float):
+    def memory_subtract(self, value: Decimal):
         self.memory -= value
 
     def memory_recall(self):
@@ -125,13 +129,13 @@ class CalculatorEngine:
 
     def constant_calculate(self):
         if self.last_operator in ['+', '-', '÷']:
-            result = self.calculate_binary(self.current_value, self.last_operator, self.last_operand)
+            result = self.calculate_binary(self.current_value, self.last_operator, Decimal(str(self.last_operand)))
         elif self.last_operator == '×':
-            result = self.calculate_binary(self.last_other_operand, self.last_operator, self.current_value) # 곱하기만 상수계산 인자위치가 다름.
+            result = self.calculate_binary(Decimal(str(self.last_other_operand)), self.last_operator, self.current_value)
         self.current_value = result
         return result
 
-    def calculate_binary(self, a, op, b):
+    def calculate_binary(self, a: Decimal, op: str, b: Decimal) -> Decimal:
         if op == '+':
             return a + b
         elif op == '-':
@@ -164,7 +168,7 @@ class Calculator:
     def __init__(self, master):
         self.master = master
         master.title("Allcalc Rice Calculator (nonK)")
-        master.geometry("700x650")
+        master.geometry("720x650")
 
         self.engine = CalculatorEngine()
         self.state = CalculatorState(self.engine)
@@ -252,7 +256,8 @@ class Calculator:
 
     def click(self, key: str):
         self.engine.count_click += 1
-        print(f"Total clicks: {self.engine.count_click}")
+        print(f"Button '{self.engine.last_button}' is pressed === === === ===")
+        print(f"Cumulative number of clicks : {self.engine.count_click}")
         if key.isdigit() or key == '.':
             if self.engine.last_button in ['+', '-', '×', '÷', '=', '√', 'M+', 'M-'] or self.engine.constant_calculation:
                 self.engine.input_buffer = ""
@@ -261,10 +266,10 @@ class Calculator:
                 return  # 이미 소숫점이 있으면 무시
             self.engine.input_buffer += key
             try:
-                self.engine.current_value = float(self.engine.input_buffer)
+                self.engine.current_value = Decimal(self.engine.input_buffer)
             except ValueError:
-                # 잘못된 입력 처리 (예: 소숫점만 입력된 경우)
-                self.engine.input_buffer = self.engine.input_buffer[:-1]  # 마지막 문자 제거
+                # 잘못된 입력 처리 
+                self.engine.input_buffer = self.engine.input_buffer[:-1]
         elif key == '▶':
             if self.engine.input_buffer:
                 self.engine.input_buffer = self.engine.input_buffer[:-1]  # 마지막 문자 제거
@@ -320,7 +325,8 @@ class Calculator:
                 self.engine.previous_value = None
                 self.engine.operation = None
             self.engine.constant_calculation = True
-            self.engine.memory_gt += self.engine.current_value # GT 메모리에 더하기
+            self.engine.memory_gt += Decimal(str(self.engine.current_value))  # GT 메모리에 더하기
+
         elif key == 'GT':
             self.state.status_display = f"메모리 GT 를 불러옵니다."
             self.engine.current_value = self.engine.memory_gt_recall()
@@ -385,9 +391,14 @@ class Calculator:
 
         # 소수점 및 소수 부분 추가
         if decimal_part:
-            self.display.insert(tk.END, '.' + decimal_part)
+            self.display.insert(tk.END, '.')
+            for char in decimal_part:
+                self.display.insert(tk.END, char, "small")
+            self.display.tag_add("right", "1.0", "end")
 
         self.display.tag_add("right", "1.0", "end")
+        self.display.tag_config("small", font=('DS-Digital', 65))  # Adjust the font size for the decimal part
+
 
         # 글자 크기 조정
         self.adjust_font_size()
@@ -396,10 +407,11 @@ class Calculator:
         self.status_display.insert(0, self.state.status_display)
         
         # 디버깅용 출력문
+        formatted_current_value = self.engine.format_number(self.engine.current_value)
         print(f"""display_value: {self.state.display_value}, 
-              current_value: {self.engine.current_value}, 
-              last_operator: {self.engine.last_operator}, 
-              last_operand: {self.engine.last_operand}""")
+                current_value: {formatted_current_value}, 
+                last_operator: {self.engine.last_operator}, 
+                last_operand: {self.engine.last_operand}""")
 
     def adjust_font_size(self):
         current_width = self.display.winfo_width()
