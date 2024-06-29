@@ -275,6 +275,7 @@ class Calculator:
             elif self.engine.current_value != 0:
                 self.engine.current_value = float(str(self.engine.current_value)[:-1] or '0')
         elif key in ['+', '-', '÷']:
+            self.engine.constant_calculation = False
             self.state.status_display = f"계산 중 : {self.engine.previous_value} {self.engine.operation}"
             if self.engine.previous_value is None:
                 self.engine.previous_value = self.engine.current_value
@@ -286,6 +287,7 @@ class Calculator:
             self.engine.input_buffer = ""
             
         elif key in ['×']:
+            self.engine.constant_calculation = False
             self.state.status_display = f"계산 중 : {self.engine.previous_value} {self.engine.operation}"
             if self.engine.previous_value is None:
                 self.engine.previous_value = self.engine.current_value
@@ -298,7 +300,7 @@ class Calculator:
             self.engine.input_buffer = ""
 
         elif key == '=':
-            if self.engine.last_operator == '÷' and not self.engine.input_buffer:
+            if not self.engine.constant_calculation and self.engine.last_operator == '÷' and not self.engine.input_buffer:
                 self.state.status_display = f"역수 계산  :  1 ÷ {self.engine.previous_value} = "
                 self.engine.current_value = self.engine.previous_value
                 self.engine.previous_value = 1
