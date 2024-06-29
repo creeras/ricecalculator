@@ -296,9 +296,14 @@ class Calculator:
             self.engine.last_operand = self.engine.previous_value 
             self.engine.operation = key
             self.engine.input_buffer = ""
-            
+
         elif key == '=':
-            if self.engine.constant_calculation or (self.engine.previous_value is None and self.engine.last_operator):
+            if self.engine.last_operator == '÷' and not self.engine.input_buffer:
+                self.state.status_display = f"역수 계산  :  1 ÷ {self.engine.previous_value} = "
+                self.engine.current_value = self.engine.previous_value
+                self.engine.previous_value = 1
+                self.engine.calculate()
+            elif self.engine.constant_calculation or (self.engine.previous_value is None and self.engine.last_operator):
                 if self.engine.constant_calculation and self.engine.last_operator == '×':
                     # 상수계산중 곱하기(*)에서만 피연산자 순서 맞추어 표시.
                     self.state.status_display = f"상수계산 : ( {self.engine.last_other_operand} {self.engine.last_operator} ) {self.engine.current_value} ="
