@@ -163,7 +163,7 @@ class CalculatorState:
 class Calculator:
     def __init__(self, master):
         self.master = master
-        master.title("Allcalc Rice Calculator")
+        master.title("Allcalc Rice Calculator (nonK)")
         master.geometry("700x650")
 
         self.engine = CalculatorEngine()
@@ -254,7 +254,7 @@ class Calculator:
         self.engine.count_click += 1
         print(f"Total clicks: {self.engine.count_click}")
         if key.isdigit() or key == '.':
-            if self.engine.last_button in ['+', '-', '×', '÷', '=', '√'] or self.engine.constant_calculation:
+            if self.engine.last_button in ['+', '-', '×', '÷', '=', '√', 'M+', 'M-'] or self.engine.constant_calculation:
                 self.engine.input_buffer = ""
                 self.engine.constant_calculation = False
             if key == '.' and '.' in self.engine.input_buffer:
