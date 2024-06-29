@@ -213,7 +213,7 @@ class Calculator:
         for i, label in enumerate(self.decimal_labels):
             tk.Label(self.switch_frame, text=label).place(x=150 + i * 48, y=20)
 
-        self.upperrows = 2
+        self.upperrows = 3
         # Buttons
         buttons = [
             ('allcalc.org', 0, 0, 1, 3), ('TAX-', 0, 3), ('TAX+', 0, 4),  
