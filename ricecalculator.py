@@ -1,22 +1,27 @@
+import math
 import tkinter as tk
 from tkinter import font as tkfont
-from typing import List, Union
-import math
-import locale
-import decimal
 from decimal import Decimal, getcontext
 
 class CalculatorEngine:
     def __init__(self):
         getcontext().prec = 14  # 정밀도 설정
-        self.memory = Decimal('0')
-        self.memory_gt = Decimal('0')
+        self.rounding_mode = 'F'
+        self.decimal_places = 4
+        self.reset_state()
+        self.memory_gt_clear()
+        self.memory_m_clear()
+
+    def clear_current(self):
+        self.input_buffer = ""
+        self.current_value = Decimal('0')
+
+    def reset_state(self):
+        # 계산기 상태 초기화
+        self.input_buffer = ""
         self.current_value = Decimal('0')
         self.previous_value = None
         self.operation = None
-        self.rounding_mode = 'F'  # F, Cut, or 5/4
-        self.decimal_places = 4  # 4, 3, 2, 1, 0, or Add2        self.number_mode = 4  # 4, 3, 2, 1, 0, or Add2
-        self.input_buffer = ""
         self.last_button = None
         self.last_operand = None
         self.last_operator = None
@@ -24,51 +29,23 @@ class CalculatorEngine:
         self.constant_calculation = False
         self.count_click = 0
 
-    def set_precision_mode(self, mode: str):
-        getcontext().prec = int(mode)
-
-    def set_rounding_mode(self, mode: str):
-        self.rounding_mode = mode
-
-    def set_decimal_places(self, places: Union[int, str]):
-        self.decimal_places = places
-
     def format_number(self, number: Decimal) -> str:
         if self.rounding_mode == 'F':
             return f"{number:.14f}".rstrip('0').rstrip('.')
         
-        if self.decimal_places == 'Add2':
-            places = 2
-        else:
-            places = int(self.decimal_places)
+        places = 2 if self.decimal_places == 'Add2' else int(self.decimal_places)
         
-        if self.rounding_mode == 'Cut':
+        if self.rounding_mode in ['Cut', '5/4']:
             return f"{number.quantize(Decimal('1.' + '0' * places)):.{places}f}"
-        elif self.rounding_mode == '5/4':
-            return f"{number.quantize(Decimal('1.' + '0' * places)):.{places}f}"
-        
-    def clear(self):
-        self.current_value = 0
-        self.previous_value = None
-        self.operation = None
-        self.input_buffer = ""
-        self.last_button = None
 
-    def all_clear(self):
-        self.memory = 0
-        self.memory_gt = 0
-        self.current_value = 0
-        self.previous_value = None
-        self.operation = None
-        self.input_buffer = ""
-        self.last_button = None
-        self.last_operand = None
-        self.last_operator = None
-        self.last_other_operand = None
-        self.constant_calculation = False
-        self.count_click = 0   
+    def calculate(self):
+        if self.operation and self.previous_value is not None:
+            operations = {'+': self.add, '-': self.subtract, '×': self.multiply, '÷': self.divide}
+            self.current_value = operations[self.operation](Decimal(str(self.previous_value)), Decimal(str(self.current_value)))
+            self.previous_value = self.current_value
+            self.operation = None
+            self.input_buffer = ""
 
-    # 모든 연산 메서드(add, subtract, multiply, divide 등)를 Decimal 연산으로 변경
     def add(self, a: Decimal, b: Decimal) -> Decimal:
         return a + b
 
@@ -84,149 +61,258 @@ class CalculatorEngine:
         else:
             raise ValueError("Cannot divide by zero")
 
-    def square_root(self, value: Decimal):
-        return math.sqrt(value)
+    def calculate_reciprocal(self, value: Decimal) -> Decimal: 
+        if value != 0:
+            return Decimal('1') / Decimal(str(value))
+        else:
+            raise ValueError("Cannot divide by zero")
 
-    def percentage(self):
-        self.current_value = self.current_value / Decimal('100')
+    def square_root(self, value: Decimal):
+        return Decimal(math.sqrt(value))
+
+    def apply_percentage(self):
+        if self.operation is None:
+            # 연산자가 없는 경우, 아무 동작도 하지 않음
+            return
+
+        if self.operation == '+':
+            self.current_value = self.previous_value + (self.previous_value * self.current_value / Decimal('100'))
+        elif self.operation == '-':
+            self.current_value = self.previous_value - (self.previous_value * self.current_value / Decimal('100'))
+        elif self.operation == '×':
+            self.current_value = self.previous_value * (self.current_value / Decimal('100'))
+        elif self.operation == '÷':
+            if self.current_value != 0:
+                self.current_value = (self.previous_value / self.current_value) * Decimal('100')
+            else:
+                raise ValueError("Cannot divide by zero")
+
+        # 연산 완료 후 상태 재설정
+        self.operation = None
+        self.input_buffer = ""
 
     def change_sign(self):
         if self.input_buffer:
             self.input_buffer = str(-Decimal(self.input_buffer))
         self.current_value = -self.current_value
 
-    def memory_add(self, value: Decimal):
-        self.memory += value
+    def memory_m_add(self, value: Decimal):
+        self.memory_m += value
 
-    def memory_subtract(self, value: Decimal):
-        self.memory -= value
+    def memory_m_subtract(self, value: Decimal):
+        self.memory_m -= value
 
-    def memory_recall(self):
-        return self.memory
+    def memory_m_recall(self):
+        return self.memory_m
+
+    def memory_m_clear(self):
+        self.memory_m = Decimal('0')
+
+    def memory_gt_clear(self):
+        self.memory_gt = Decimal('0')
+
+    def memory_gt_add(self, value: Decimal):
+        self.memory_gt += value
 
     def memory_gt_recall(self):
         return self.memory_gt    
 
-    def memory_clear(self):
-        self.memory = 0
-
-    def set_mode(self, mode: str):
-        self.mode = mode
-
-    def set_number_mode(self, mode: int):
-        self.number_mode = mode
-
-    def calculate(self):
-        if self.operation and self.previous_value is not None:
-            if self.operation == '+':
-                self.current_value = self.add(self.previous_value, self.current_value)
-            elif self.operation == '-':
-                self.current_value = self.subtract(self.previous_value, self.current_value)
-            elif self.operation == '×':
-                self.current_value = self.multiply(self.previous_value, self.current_value)
-            elif self.operation == '÷':
-                self.current_value = self.divide(self.previous_value, self.current_value)
-            self.previous_value = self.current_value
-            self.operation = None
-            self.input_buffer = ""
-
     def constant_calculate(self):
-        if self.last_operator in ['+', '-', '÷']:
+        if self.last_operator == '×':
+            result = self.calculate_binary(self.last_other_operand, self.last_operator, self.current_value)
+        elif self.last_operator in ['+', '-', '÷']:
+            if self.last_operator == '÷' and self.last_operand == 0:
+                raise ValueError("Cannot divide by zero")
             result = self.calculate_binary(self.current_value, self.last_operator, Decimal(str(self.last_operand)))
-        elif self.last_operator == '×':
-            result = self.calculate_binary(Decimal(str(self.last_other_operand)), self.last_operator, self.current_value)
         self.current_value = result
         return result
 
+
     def calculate_binary(self, a: Decimal, op: str, b: Decimal) -> Decimal:
-        if op == '+':
-            return a + b
-        elif op == '-':
-            return a - b
-        elif op == '×':
-            return a * b
-        elif op == '÷':
-            if b != 0:
-                return a / b
-            else:
-                raise ValueError("Cannot divide by zero")    
+        operations = {'+': self.add, '-': self.subtract, '×': self.multiply, '÷': self.divide}
+        return operations[op](a, b)
+
+    def backspace(self):
+        if self.input_buffer:
+            self.input_buffer = self.input_buffer[:-1]
+            self.current_value = Decimal(self.input_buffer or '0')
+        elif self.current_value != 0:
+            str_value = str(self.current_value)[:-1] or '0'
+            self.current_value = Decimal(str_value)
+
+    def set_precision_mode(self, mode: str):
+        getcontext().prec = int(mode)
+
+    def set_rounding_mode(self, mode: str):
+        self.rounding_mode = mode
+
+    def set_decimal_places(self, places: str):
+        self.decimal_places = places
+
+    def should_reset_input(self):
+        return self.last_button in ['+', '-', '×', '÷', '=', '√', 'M+', 'M-'] or self.constant_calculation
+
+    def reset_input(self):
+        self.input_buffer = ""
+        self.constant_calculation = False
+
+    def append_to_input(self, key):
+        self.input_buffer += key
+        try:
+            self.current_value = Decimal(self.input_buffer)
+        except ValueError:
+            self.input_buffer = self.input_buffer[:-1]
+
+    def set_operator(self, key):
+        self.constant_calculation = False
+        if self.previous_value is None:
+            self.previous_value = self.current_value
+        elif self.input_buffer and not self.constant_calculation:
+            self.calculate()
+        self.last_operator = key
+        self.last_operand = self.current_value
+        self.operation = key
+        self.input_buffer = "" 
+
+    def update_after_equals(self):
+        self.previous_value = None
+        self.operation = None
+        self.input_buffer = str(self.current_value)
 
 class CalculatorState:
     def __init__(self, engine: CalculatorEngine):
         self.engine = engine
         self.display_value = "0"
-        self.status_display = "init"
-
+        self.status_display = ""
+        self.calculation_history = []
+        self.current_entry = ""
+        self.history_index = -1
+        self.last_calculation = ""
+        self.constant_calculation_count = 0
+        
     def update_display(self):
         if self.engine.input_buffer:
             self.display_value = self.engine.input_buffer
         else:
-            number = self.engine.format_number(self.engine.current_value)
-            self.display_value = number  # 천단위 구분자를 추가하지 않고 그대로 저장
+            self.display_value = self.engine.format_number(self.engine.current_value)
+        
+        self.status_display = self.current_entry if self.current_entry else self.last_calculation
 
-        if self.engine.operation: 
-            self.status_display = f"{self.engine.previous_value} {self.engine.operation}"
+    def add_to_history(self):
+        if self.current_entry:
+            self.calculation_history.append(self.current_entry)
+            self.history_index = len(self.calculation_history) - 1
+            self.last_calculation = self.current_entry  # 마지막 계산 저장
+            self.current_entry = ""
+        print(f'Calculation History: {self.calculation_history}')
+
+
+    def reset(self):
+        self.display_value = "0"
+        self.status_display = ""
+        self.calculation_history = []
+        self.current_entry = ""
+        self.last_calculation = ""  # 초기화 시 마지막 계산도 초기화
+        self.history_index = -1
+        
+import tkinter as tk
+from tkinter import font as tkfont
+from decimal import Decimal
 
 class Calculator:
     def __init__(self, master):
         self.master = master
         master.title("Allcalc Rice Calculator (nonK)")
         master.geometry("720x650")
+        self.gt_button = None
+        self.mr_button = None
 
         self.engine = CalculatorEngine()
         self.state = CalculatorState(self.engine)
 
+        self.setup_ui()
+        self.update_display()
+        print(f"#{self.engine.count_click:4}#, 【key】 , last_operand, last_operator, previous_value, current_value, input_buffer")
+
+    def setup_ui(self):
+        # Status display frame
+        self.status_frame = tk.Frame(self.master)
+        self.status_frame.grid(row=0, column=0, columnspan=5, sticky='nsew')
+
+        # Previous button
+        self.prev_button = tk.Button(self.status_frame, text="<", command=self.show_previous_entry)
+        self.prev_button.pack(side=tk.LEFT)
+
         # Status display
-        # Main display (Entry 대신 Text 위젯 사용)
+        self.status_display = tk.Entry(self.status_frame, width=60, justify='center', font=('Arial', 10), relief='flat', bd=5)
+        self.status_display.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        self.status_display = tk.Entry(master, width=20, justify='right', font=('Arial', 10), relief='flat', bd=5)
-        self.status_display.grid(row=0, column=0, columnspan=5, padx=0, pady=0, sticky='nsew')
-
+        # Next button
+        self.next_button = tk.Button(self.status_frame, text=">", command=self.show_next_entry)
+        self.next_button.pack(side=tk.RIGHT)
+        
         # Main display
-        self.display_height = 1  # 고정 높이 설정
-        self.display = tk.Text(master, height=self.display_height, width=20, font=('DS-Digital', 72), relief='sunken', bd=5)
+        self.display_height = 1
+        self.display = tk.Text(self.master, height=self.display_height, width=20, font=('DS-Digital', 72), relief='sunken', bd=5)
         self.display.grid(row=1, column=0, columnspan=5, padx=10, pady=10, sticky='nsew')
         self.display.configure(height=self.display_height)
         self.display.tag_configure("right", justify='right')
-        self.display.tag_configure("separator", foreground='#888888')  # 연한 회색
+        self.display.tag_configure("separator", foreground='#888888')
 
-        # 초기 폰트 설정
         self.display_font = tkfont.Font(family='DS-Digital', size=72)
         self.display.configure(font=self.display_font)
         
-        # Switches 3종 : 정밀도 / 라운딩 / 데시멀
-        self.switch_frame = tk.Frame(master)
+        # Switches setup
+        self.setup_switches()
+
+        # Buttons setup
+        self.setup_buttons()
+
+        # Make the grid cells expandable
+        for i in range(9):
+            self.master.grid_rowconfigure(i, weight=1)
+        for i in range(5):
+            self.master.grid_columnconfigure(i, weight=1)
+
+    def setup_switches(self):
+        self.switch_frame = tk.Frame(self.master)
         self.switch_frame.grid(row=2, column=0, columnspan=5, pady=5)
 
-        self.precision_switch = tk.IntVar(value=3)
-        self.rounding_scale = tk.Scale(self.switch_frame, from_=0, to=2, orient=tk.HORIZONTAL, length=120, showvalue=0,
-                                   tickinterval=1, resolution=1, variable=self.precision_switch, command=self.change_precision_mode)
-        self.rounding_scale.pack(side=tk.LEFT, padx=5)        
+        self.setup_precision_switch()
+        self.setup_rounding_switch()
+        self.setup_decimal_switch()
 
-        self.rounding_labels = ["10 ", " 12 ", "  14 "]
-        for i, label in enumerate(self.rounding_labels):
+    def setup_precision_switch(self):
+        self.precision_switch = tk.IntVar(value=3)
+        self.precision_scale = tk.Scale(self.switch_frame, from_=0, to=2, orient=tk.HORIZONTAL, length=120, showvalue=0,
+                                   tickinterval=1, resolution=1, variable=self.precision_switch, command=self.change_precision_mode)
+        self.precision_scale.pack(side=tk.LEFT, padx=5)        
+
+        precision_labels = ["10 ", " 12 ", "  14 "]
+        for i, label in enumerate(precision_labels):
             tk.Label(self.switch_frame, text=label).place(x=13 + i * 38, y=20)
 
+    def setup_rounding_switch(self):
         self.rounding_switch = tk.IntVar(value=0)
         self.rounding_scale = tk.Scale(self.switch_frame, from_=0, to=2, orient=tk.HORIZONTAL, length=120, showvalue=0,
                                    tickinterval=1, resolution=1, variable=self.rounding_switch, command=self.change_rounding_mode)
         self.rounding_scale.pack(side=tk.LEFT, padx=5)
         
-        self.rounding_labels = [" F", "Cut ", " 5/4"]
-        for i, label in enumerate(self.rounding_labels):
+        rounding_labels = [" F", "Cut ", " 5/4"]
+        for i, label in enumerate(rounding_labels):
             tk.Label(self.switch_frame, text=label).place(x=150 + i * 38, y=20)
 
+    def setup_decimal_switch(self):
         self.decimal_switch = tk.IntVar(value=0)
         self.decimal_scale = tk.Scale(self.switch_frame, from_=0, to=5, orient=tk.HORIZONTAL, length=280, showvalue=0,
                                      tickinterval=1, resolution=1, variable=self.decimal_switch, command=self.change_decimal_places)
         self.decimal_scale.pack(side=tk.LEFT, padx=5)
         
-        self.decimal_labels = [" 4", " 3 ", " 2 ", " 1 ", " 0 ", "Add2"]
-        for i, label in enumerate(self.decimal_labels):
+        decimal_labels = [" 4", " 3 ", " 2 ", " 1 ", " 0 ", "Add2"]
+        for i, label in enumerate(decimal_labels):
             tk.Label(self.switch_frame, text=label).place(x=285 + i * 48, y=20)
 
-        self.upperrows = 3
-        # Buttons
+    def setup_buttons(self):
         buttons = [
             ('allcalc.org', 0, 0, 1, 3), ('TAX-', 0, 3), ('TAX+', 0, 4),  
             ('M/EX', 1, 0), ('%', 1, 1), ('√', 1, 2), ('▶', 1, 3), ('GT', 1, 4), 
@@ -238,145 +324,353 @@ class Calculator:
         ]
 
         for btn in buttons:
-            if btn[0] in ['AC', 'C']:
-                tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16), bg='orange', 
-                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+self.upperrows, column=btn[2], sticky='nsew')
-            elif btn[0].isdigit() or btn[0] == '.':
-                tk.Button(master, text=btn[0], width=10, height=2, font=('DS-Digital Bold', 18, 'bold'), bg='grey',
-                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+self.upperrows, column=btn[2], sticky='nsew')
-            elif len(btn) == 4:  # For the '+' button rowspan
-                tk.Button(master, text=btn[0], width=10, height=4, font=('Arial', 16),
-                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+self.upperrows, column=btn[2], rowspan=btn[3], sticky='nsew')
-            elif len(btn) == 5:  # For the 'allcalc.org ' button columnspan
-                tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16),
-                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+self.upperrows, column=btn[2], rowspan=btn[3], columnspan=btn[4], sticky='nsew')
-            else:
-                tk.Button(master, text=btn[0], width=10, height=2, font=('Arial', 16),
-                          command=lambda x=btn[0]: self.click(x)).grid(row=btn[1]+self.upperrows, column=btn[2], sticky='nsew')
+            self.create_button(btn)
 
-        # Make the grid cells expandable
-        for i in range(9):
-            master.grid_rowconfigure(i, weight=1)
-        for i in range(5):
-            master.grid_columnconfigure(i, weight=1)
+    def create_button(self, btn):
+        if btn[0] in ['AC', 'C']:
+            button = tk.Button(self.master, text=btn[0], width=10, height=2, font=('Arial', 16), bg='orange', 
+                      command=lambda x=btn[0]: self.click(x))
+        elif btn[0].isdigit() or btn[0] == '.':
+            button = tk.Button(self.master, text=btn[0], width=10, height=2, font=('DS-Digital Bold', 18, 'bold'), bg='grey',
+                      command=lambda x=btn[0]: self.click(x))
+        elif len(btn) == 5:  # For the 'allcalc.org' button
+            button = tk.Button(self.master, text=btn[0], width=10, height=2, font=('Arial', 16),
+                      command=lambda x=btn[0]: self.click(x))
+        elif len(btn) == 4:  # For the '+' button
+            button = tk.Button(self.master, text=btn[0], width=10, height=4, font=('Arial', 16),
+                      command=lambda x=btn[0]: self.click(x))
+        else:
+            button = tk.Button(self.master, text=btn[0], width=10, height=2, font=('Arial', 16),
+                      command=lambda x=btn[0]: self.click(x))
+        
+        button.grid(row=btn[1]+3, column=btn[2], sticky='nsew', rowspan=btn[3] if len(btn) > 3 else 1, columnspan=btn[4] if len(btn) > 4 else 1)
+        
+        if btn[0] == 'GT':
+            self.gt_button = button
+        elif btn[0] == 'MR':
+            self.mr_button = button
 
-        self.engine.clear()
-        self.engine.memory_clear()
-        self.state.status_display = f"【AC】화면 지우기 & 메모리 초기화" 
 
-        self.update_display()
+    def update_memory_buttons(self):
+        gt_memory = self.engine.memory_gt_recall()
+        m_memory = self.engine.memory_m_recall()
 
-    def click(self, key: str):
+        if gt_memory != 0:
+            self.gt_button.config(bg='#E6E6FA')  # Light lavender
+        else:
+            self.gt_button.config(bg='SystemButtonFace')  # Default button color
+
+        if m_memory != 0:
+            self.mr_button.config(bg='#F0FFF0')  # Light honeydew
+        else:
+            self.mr_button.config(bg='SystemButtonFace')  # Default button color
+
+    def click(self, key):
         self.engine.count_click += 1
-        print(f"Button '{self.engine.last_button}' is pressed === === === ===")
-        print(f"Cumulative number of clicks : {self.engine.count_click}")
+        print(f"#{self.engine.count_click:4}-1#, 【{key}】 , {self.engine.last_operand}, {self.engine.last_operator}, {self.engine.previous_value}, {self.engine.current_value},'{self.engine.input_buffer}'")
         if key.isdigit() or key == '.':
-            if self.engine.last_button in ['+', '-', '×', '÷', '=', '√', 'M+', 'M-'] or self.engine.constant_calculation:
-                self.engine.input_buffer = ""
-                self.engine.constant_calculation = False
-            if key == '.' and '.' in self.engine.input_buffer:
-                return  # 이미 소숫점이 있으면 무시
-            self.engine.input_buffer += key
-            try:
-                self.engine.current_value = Decimal(self.engine.input_buffer)
-            except ValueError:
-                # 잘못된 입력 처리 
-                self.engine.input_buffer = self.engine.input_buffer[:-1]
+            self.handle_number_input(key)
         elif key == '▶':
-            if self.engine.input_buffer:
-                self.engine.input_buffer = self.engine.input_buffer[:-1]  # 마지막 문자 제거
-                if self.engine.input_buffer:
-                    self.engine.current_value = float(self.engine.input_buffer)
-                else:
-                    self.engine.current_value = 0
-            elif self.engine.current_value != 0:
-                self.engine.current_value = float(str(self.engine.current_value)[:-1] or '0')
-        elif key in ['+', '-', '÷']:
-            self.engine.constant_calculation = False
-            self.state.status_display = f"계산 중 : {self.engine.previous_value} {self.engine.operation}"
-            if self.engine.previous_value is None:
-                self.engine.previous_value = self.engine.current_value
-            elif self.engine.input_buffer and not self.engine.constant_calculation:
-                self.engine.calculate()
-            self.engine.last_operator = key
-            self.engine.last_operand = self.engine.current_value
-            self.engine.operation = key
-            self.engine.input_buffer = ""
-            
-        elif key in ['×']:
-            self.engine.constant_calculation = False
-            self.state.status_display = f"계산 중 : {self.engine.previous_value} {self.engine.operation}"
-            if self.engine.previous_value is None:
-                self.engine.previous_value = self.engine.current_value
-            elif self.engine.input_buffer and not self.engine.constant_calculation:
-                self.engine.calculate()
-            self.engine.last_operator = key
-            self.engine.last_other_operand = self.engine.previous_value
-            self.engine.last_operand = self.engine.previous_value 
-            self.engine.operation = key
-            self.engine.input_buffer = ""
-
+            self.engine.backspace()
+        elif key in ['+', '-', '×', '÷']:
+            self.handle_operator(key)
         elif key == '=':
-            if not self.engine.constant_calculation and self.engine.last_operator == '÷' and not self.engine.input_buffer:
-                self.state.status_display = f"역수 계산  :  1 ÷ {self.engine.previous_value} = "
-                self.engine.current_value = self.engine.previous_value
-                self.engine.previous_value = 1
-                self.engine.calculate()
-            elif self.engine.constant_calculation or (self.engine.previous_value is None and self.engine.last_operator):
-                if self.engine.constant_calculation and self.engine.last_operator == '×':
-                    # 상수계산중 곱하기(*)에서만 피연산자 순서 맞추어 표시.
-                    self.state.status_display = f"상수계산 : ( {self.engine.last_other_operand} {self.engine.last_operator} ) {self.engine.current_value} ="
-                else:
-                    self.state.status_display = f"상수계산 : {self.engine.current_value} ( {self.engine.last_operator} {self.engine.last_operand} ) ="
-                result = self.engine.constant_calculate()
-            elif self.engine.previous_value is not None and self.engine.operation: # 이건가?
-                self.engine.last_operand = self.engine.current_value
-                self.engine.last_operator = self.engine.operation
-                self.state.status_display = f"{self.engine.previous_value} {self.engine.operation} {self.engine.current_value} =" 
-                self.engine.calculate()
-                self.engine.previous_value = None
-                self.engine.operation = None
-            
-            if self.engine.last_operator :
-                self.engine.constant_calculation = True
-            self.engine.memory_gt += Decimal(str(self.engine.current_value))  # GT 메모리에 더하기
-
+            self.handle_equals()
         elif key == 'GT':
-            self.state.status_display = f"메모리 GT 를 불러옵니다."
-            self.engine.current_value = self.engine.memory_gt_recall()
-            self.engine.input_buffer = str(self.engine.current_value)
-
-        elif key == 'C':
-            self.engine.clear()
-            self.state.status_display = f"【C】 화면 지우기" 
-        elif key == 'AC':
-            self.engine.all_clear()
-            self.state.status_display = f"【AC】화면 지우기 & 메모리 초기화" 
+            self.handle_gt()
+        elif key in ['C', 'AC']:
+            self.handle_clear(key)
         elif key == '+/-':
             self.engine.change_sign()
         elif key == '%':
-            self.engine.percentage()
+            self.handle_percentage()
         elif key == '√':
-            self.engine.current_value = self.engine.square_root(self.engine.current_value)
-            self.engine.input_buffer = str(self.engine.current_value)
-            self.state.status_display = f"√{self.engine.current_value}"
-        elif key == 'M+':
-            self.engine.memory_add(self.engine.current_value)
-            self.state.status_display = f"메모리 M = {self.engine.memory} = {self.engine.memory - self.engine.current_value} + {self.engine.current_value}"
-        elif key == 'M-':
-            self.engine.memory_subtract(self.engine.current_value)
-            self.state.status_display = f"메모리 M = {self.engine.memory} = {self.engine.memory + self.engine.current_value} - {self.engine.current_value}"
-        elif key == 'MR':
-            self.state.status_display = f"메모리 M 을 불러옵니다."
-            self.engine.current_value = self.engine.memory_recall()
-            self.engine.input_buffer = str(self.engine.current_value)
-        elif key == 'MC':
-            self.state.status_display = f"메모리 M = 0 초기화."
-            self.engine.memory_clear()
+            self.handle_square_root()
+        elif key in ['M+', 'M-', 'MR', 'MC']:
+            self.handle_memory_m(key)
         
         self.engine.last_button = key
-        print(f"before update: {self.state.status_display}")
+        print(f"#{self.engine.count_click:4}-2#, 【{key}】 , {self.engine.last_operand}, {self.engine.last_operator}, {self.engine.previous_value}, {self.engine.current_value},'{self.engine.input_buffer}'")
         self.update_display()
+
+    def handle_number_input(self, key):
+        if self.engine.should_reset_input():
+            self.engine.reset_input()
+            if self.state.current_entry.endswith('='):
+                self.state.current_entry = ""
+        if key == '.' and '.' in self.engine.input_buffer:
+            return
+        self.engine.append_to_input(key)
+        self.state.update_display()
+
+    def handle_operator(self, key):
+        if self.engine.input_buffer:
+            current_value = Decimal(self.engine.input_buffer)
+            self.state.current_entry += f" {self.engine.input_buffer}"
+        else:
+            current_value = self.engine.current_value
+            if not self.state.current_entry:
+                self.state.current_entry = str(current_value)
+
+        # Check if the last operation was also an operator
+        if self.engine.last_button in ['+', '-', '×', '÷']:
+            # Remove the last operator from the current entry
+            self.state.current_entry = self.state.current_entry.rsplit(' ', 1)[0]
+        else:
+            # If not, perform the calculation for the previous operation
+            if self.engine.operation:
+                result = self.engine.calculate_binary(self.engine.previous_value, self.engine.operation, current_value)
+                self.engine.current_value = result
+                self.state.current_entry += f" = {result}"
+
+        # Update the current entry with the new operator
+        self.state.current_entry += f" {key}"
+        
+        # Update the engine state
+        self.engine.previous_value = self.engine.current_value
+        self.engine.operation = key
+        self.engine.input_buffer = ""
+        
+        # Update last_operand and last_other_operand for multiplication
+        if key == '×':
+            self.engine.last_other_operand = self.engine.current_value
+            self.engine.last_operand = current_value
+        else:
+            self.engine.last_operand = current_value
+        
+        self.engine.last_operator = key
+        self.state.update_display()
+
+    def handle_equals(self):
+        if self.engine.input_buffer:
+            current_value = Decimal(self.engine.input_buffer)
+            self.state.current_entry += f" {self.engine.input_buffer}"
+        else:
+            current_value = self.engine.current_value
+        print(f"last_button: {self.engine.last_button}")
+        if self.engine.last_operator == '÷' and self.engine.last_button == '÷':
+            print(f"역수 계산")
+            try:
+                reciprocal = self.engine.calculate_reciprocal(self.engine.last_operand)
+                self.engine.current_value = reciprocal
+                self.state.current_entry += f" = 1 ÷ {self.engine.last_operand} = {reciprocal}"
+            except ValueError:
+                self.state.current_entry += " = Error (Division by zero)"
+                self.engine.current_value = Decimal('0')
+        elif self.engine.operation:
+            result = self.engine.calculate_binary(self.engine.previous_value, self.engine.operation, current_value)
+            self.engine.current_value = result
+            self.state.current_entry += f" = {result}"
+            
+            # 다음 상수 계산을 위해 마지막 연산자와 피연산자 저장
+            self.engine.last_operator = self.engine.operation
+            if self.engine.operation == '×':
+                self.engine.last_other_operand = self.engine.previous_value
+            else:
+                self.engine.last_operand = current_value
+        elif self.engine.last_operator:
+            self.handle_constant_calculation()
+        else:
+            self.state.current_entry += f" = {self.engine.current_value}"
+
+        self.engine.memory_gt_add(self.engine.current_value)
+        self.update_memory_buttons()
+        
+        self.state.status_display = self.state.current_entry
+        self.state.add_to_history()
+        
+        self.engine.update_after_equals()
+        self.engine.input_buffer = ""
+        self.state.constant_calculation_count = 0
+        print(f"state.current_entry: {self.state.current_entry}")
+        print(f"state.last_calculation: {self.state.last_calculation}")
+
+    def handle_percentage(self):
+        if self.engine.input_buffer:
+            self.engine.current_value = Decimal(self.engine.input_buffer)
+        
+        try:
+            if self.engine.operation is None:
+                # If there's no operation, just convert the current value to a percentage
+                result = self.engine.current_value / Decimal('100')
+                self.state.current_entry = f"{self.engine.current_value}% = {result}"
+            else:
+                previous_value = self.engine.previous_value
+                current_value = self.engine.current_value
+                operation = self.engine.operation
+
+                if operation == '+':
+                    result = previous_value + (previous_value * current_value / Decimal('100'))
+                    self.state.current_entry = f"{previous_value} *(1+ {current_value}%) = {result}"
+                elif operation == '-':
+                    result = previous_value - (previous_value * current_value / Decimal('100'))
+                    self.state.current_entry = f"{previous_value} *(1- {current_value}%) = {result}"
+                elif operation == '×':
+                    result = previous_value * (current_value / Decimal('100'))
+                    self.state.current_entry = f"{previous_value} × {current_value}% = {result}"
+                elif operation == '÷':
+                    if current_value != 0:
+                        result = (previous_value / current_value) * Decimal('100')
+                        self.state.current_entry = f"{previous_value} ÷ {current_value} × 100 = {result} (%)"
+                    else:
+                        raise ValueError("Cannot divide by zero")
+
+            self.engine.current_value = result
+        except ValueError as e:
+            self.state.current_entry += f" Error: {str(e)}"
+        
+        self.engine.operation = None
+        self.engine.previous_value = None
+        self.engine.input_buffer = ""
+        self.state.add_to_history()
+        self.update_display()
+
+    def handle_constant_calculation(self):
+        self.state.constant_calculation_count += 1
+        if self.engine.last_operator and self.engine.last_operand is not None:
+            try:
+                result = self.engine.constant_calculate()
+                operator_str = self.engine.last_operator
+                if self.engine.last_operator == '×':
+                    operand_str = str(self.engine.last_other_operand)
+                else:
+                    operand_str = str(self.engine.last_operand)
+                if self.state.constant_calculation_count == 1:
+                    self.state.current_entry += f" {operator_str} {operand_str}"
+                self.state.current_entry += f" = {result}"
+                self.engine.current_value = result
+            except ValueError:
+                self.state.current_entry += " = Error (Division by zero)"
+                self.engine.current_value = Decimal('0')
+        else:
+            self.state.current_entry += f" = {self.engine.current_value}"
+
+        
+    def handle_gt(self):
+        self.engine.current_value = self.engine.memory_gt_recall()
+        self.engine.input_buffer = str(self.engine.current_value)
+        self.state.current_entry += f" Recall GT = {self.engine.current_value}"
+        self.state.add_to_history()
+        self.update_display()        
+
+
+
+    def handle_clear(self, key):
+        if key == 'C':
+            self.engine.clear_current()
+            self.state.status_display = f"【C】 화면 지우기"
+        elif key == 'AC':
+            # 계산기마다 AC 작동 범위가 다르므로 호출하는 함수를 구분하여 적용함.
+            self.engine.reset_state()
+            self.engine.memory_gt_clear()
+            self.engine.memory_m_clear()
+            self.state.reset()
+            self.state.status_display = f"【AC】화면 지우기 & 메모리 초기화"
+        self.update_memory_buttons()
+
+    def handle_square_root(self):
+        self.engine.current_value = self.engine.square_root(self.engine.current_value)
+        self.engine.input_buffer = str(self.engine.current_value)
+        self.state.status_display = f"√{self.engine.current_value}"
+
+    def handle_memory_m(self, key):
+        if key == 'M+':
+            self.engine.memory_m_add(self.engine.current_value)
+            self.state.current_entry += f" M += {self.engine.current_value}"
+        elif key == 'M-':
+            self.engine.memory_m_subtract(self.engine.current_value)
+            self.state.current_entry += f" M -= {self.engine.current_value}"
+        elif key == 'MR':
+            self.engine.current_value = self.engine.memory_m_recall()
+            self.state.current_entry += f" Recall M = {self.engine.current_value}"
+        elif key == 'MC':
+            self.engine.memory_m_clear()
+            self.state.current_entry += " MC"
+        self.state.add_to_history()
+        self.update_display()
+        self.update_memory_buttons()
+
+
+    def perform_calculation(self):
+        if self.engine.operation and self.engine.previous_value is not None:
+            if self.engine.input_buffer:
+                current_value = Decimal(self.engine.input_buffer)
+            else:
+                current_value = self.engine.current_value
+            result = self.engine.calculate_binary(self.engine.previous_value, self.engine.operation, current_value)
+            self.engine.current_value = result
+            self.engine.input_buffer = ""
+
+    def update_display(self):
+        self.state.update_display()
+        self.display.delete('1.0', tk.END)
+        
+        display_value = self.engine.format_number(self.engine.current_value)
+        parts = display_value.split('.')
+        integer_part = parts[0].lstrip('0') or '0'
+        decimal_part = parts[1] if len(parts) > 1 else ""
+
+        for i, char in enumerate(reversed(integer_part)):
+            if i > 0 and i % 3 == 0:
+                self.display.insert('1.0', ',', 'separator')
+            self.display.insert('1.0', char)
+
+        if decimal_part:
+            self.display.insert(tk.END, '.')
+            for char in decimal_part:
+                self.display.insert(tk.END, char, "small")
+        
+        self.display.tag_add("right", "1.0", "end")
+        self.display.tag_config("small", font=('DS-Digital', 65))
+
+        self.adjust_font_size()
+
+        self.status_display.delete(0, tk.END)
+        self.status_display.insert(0, self.state.status_display)
+        print(f'self.state.status_display: "{self.state.status_display}", self.engine.current_value: "{self.engine.current_value}"')
+
+        # Add this line to update memory display
+        self.update_memory_indicator()
+
+    def update_memory_indicator(self):
+        # This method should update any visual indicator of memory status
+        # For example, if you have a label or icon for memory status:
+        memory_value = self.engine.memory_m_recall()
+        if memory_value != 0:
+            # Update your memory indicator to show that memory is not empty
+            pass
+        else:
+            # Update your memory indicator to show that memory is empty
+            pass
+
+
+    def show_previous_entry(self):
+        entry = self.state.get_previous_entry()
+        if entry:
+            self.status_display.delete(0, tk.END)
+            self.status_display.insert(0, entry)
+
+    def show_next_entry(self):
+        entry = self.state.get_next_entry()
+        if entry:
+            self.status_display.delete(0, tk.END)
+            self.status_display.insert(0, entry)
+
+    def adjust_font_size(self):
+        current_width = self.display.winfo_width()
+        text_width = self.display_font.measure(self.display.get('1.0', 'end-1c'))
+        
+        if text_width > current_width:
+            current_size = self.display_font['size']
+            while text_width > current_width and current_size > 10:
+                current_size -= 1
+                self.display_font.configure(size=current_size)
+                text_width = self.display_font.measure(self.display.get('1.0', 'end-1c'))
+        else:
+            self.display_font.configure(size=72)
+        
+        self.display.configure(font=self.display_font)
+        self.display.configure(height=self.display_height)
 
     def change_precision_mode(self, value):
         modes = ['10', '12', '14']
@@ -392,64 +686,6 @@ class Calculator:
         modes = ['4', '3', '2', '1', '0', 'Add2']
         self.engine.set_decimal_places(modes[int(value)])
         self.update_display()
-
-    def update_display(self):
-        self.state.update_display()
-        self.display.delete('1.0', tk.END)
-        
-        display_value = self.state.display_value
-        parts = display_value.split('.')
-        integer_part = parts[0].lstrip('0') or '0'  # 선행 zeros 제거, 비어있으면 '0'
-        decimal_part = parts[1] if len(parts) > 1 else ""
-
-        # 정수 부분에 천단위 구분자 추가 및 색상 지정
-        for i, char in enumerate(reversed(integer_part)):
-            if i > 0 and i % 3 == 0:
-                self.display.insert('1.0', ',', 'separator')
-            self.display.insert('1.0', char)
-
-        # 소수점 및 소수 부분 추가
-        if decimal_part:
-            self.display.insert(tk.END, '.')
-            for char in decimal_part:
-                self.display.insert(tk.END, char, "small")
-            self.display.tag_add("right", "1.0", "end")
-
-        self.display.tag_add("right", "1.0", "end")
-        self.display.tag_config("small", font=('DS-Digital', 65))  # Adjust the font size for the decimal part
-
-
-        # 글자 크기 조정
-        self.adjust_font_size()
-
-        self.status_display.delete(0, tk.END)
-        self.status_display.insert(0, self.state.status_display)
-        
-        # 디버깅용 출력문
-        formatted_current_value = self.engine.format_number(self.engine.current_value)
-        print(f"""display_value: {self.state.display_value}, 
-                current_value: {formatted_current_value}, 
-                last_operator: {self.engine.last_operator}, 
-                last_operand: {self.engine.last_operand}""")
-
-    def adjust_font_size(self):
-        current_width = self.display.winfo_width()
-        text_width = self.display_font.measure(self.display.get('1.0', 'end-1c'))
-        
-        # 텍스트가 디스플레이 너비를 초과하는 경우 폰트 크기 조정
-        if text_width > current_width:
-            current_size = self.display_font['size']
-            while text_width > current_width and current_size > 10:
-                current_size -= 1
-                self.display_font.configure(size=current_size)
-                text_width = self.display_font.measure(self.display.get('1.0', 'end-1c'))
-        else:
-            # 텍스트가 디스플레이 너비보다 작은 경우 폰트 크기를 원래대로 복원
-            self.display_font.configure(size=72)
-        
-        self.display.configure(font=self.display_font)
-        # 높이 고정
-        self.display.configure(height=self.display_height)
 
 def main():
     root = tk.Tk()
