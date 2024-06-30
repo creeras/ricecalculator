@@ -117,6 +117,7 @@ class CalculatorEngine:
         self.number_mode = mode
 
     def calculate(self):
+        print(f"calculate(self) : {self.previous_value} {self.operation} {self.current_value}")
         if self.operation and self.previous_value is not None:
             if self.operation == '+':
                 self.current_value = self.add(self.previous_value, self.current_value)
@@ -268,8 +269,10 @@ class Calculator:
 
     def click(self, key: str):
         self.engine.count_click += 1
-        print(f"Button '{self.engine.last_button}' is pressed === === === ===")
-        print(f"Cumulative number of clicks : {self.engine.count_click}")
+        print(f"###########################################################")
+        print(f"######################### '{key}' #########################")
+        # print(f"Cumulative number of clicks : {self.engine.count_click}")
+
         if key.isdigit() or key == '.':
             if self.engine.last_button in ['+', '-', '×', '÷', '=', '√', 'M+', 'M-'] or self.engine.constant_calculation:
                 self.engine.input_buffer = ""
@@ -282,6 +285,7 @@ class Calculator:
             except ValueError:
                 # 잘못된 입력 처리 
                 self.engine.input_buffer = self.engine.input_buffer[:-1]
+
         elif key == '▶':
             if self.engine.input_buffer:
                 self.engine.input_buffer = self.engine.input_buffer[:-1]  # 마지막 문자 제거
@@ -291,6 +295,7 @@ class Calculator:
                     self.engine.current_value = 0
             elif self.engine.current_value != 0:
                 self.engine.current_value = float(str(self.engine.current_value)[:-1] or '0')
+
         elif key in ['+', '-', '÷']:
             self.engine.constant_calculation = False
             self.state.status_display = f"계산 중 : {self.engine.previous_value} {self.engine.operation}"
@@ -318,18 +323,20 @@ class Calculator:
 
         elif key == '=':
             if not self.engine.constant_calculation and self.engine.last_operator == '÷' and not self.engine.input_buffer:
+                print(f'= if1')
                 self.state.status_display = f"역수 계산  :  1 ÷ {self.engine.previous_value} = "
                 self.engine.current_value = self.engine.previous_value
                 self.engine.previous_value = 1
                 self.engine.calculate()
             elif self.engine.constant_calculation or (self.engine.previous_value is None and self.engine.last_operator):
-                if self.engine.constant_calculation and self.engine.last_operator == '×':
-                    # 상수계산중 곱하기(*)에서만 피연산자 순서 맞추어 표시.
+                print(f'= elif1')
+                if self.engine.last_operator == '×': # self.engine.constant_calculation and 이거 일단 빼
                     self.state.status_display = f"상수계산 : ( {self.engine.last_other_operand} {self.engine.last_operator} ) {self.engine.current_value} ="
                 else:
                     self.state.status_display = f"상수계산 : {self.engine.current_value} ( {self.engine.last_operator} {self.engine.last_operand} ) ="
-                result = self.engine.constant_calculate()
-            elif self.engine.previous_value is not None and self.engine.operation: # 이건가?
+                self.engine.current_value = self.engine.constant_calculate()
+            elif self.engine.previous_value is not None and self.engine.operation:
+                print(f'= elif2')
                 self.engine.last_operand = self.engine.current_value
                 self.engine.last_operator = self.engine.operation
                 self.state.status_display = f"{self.engine.previous_value} {self.engine.operation} {self.engine.current_value} =" 
@@ -337,9 +344,10 @@ class Calculator:
                 self.engine.previous_value = None
                 self.engine.operation = None
             
-            if self.engine.last_operator :
+            if self.engine.last_operator:
                 self.engine.constant_calculation = True
             self.engine.memory_gt += Decimal(str(self.engine.current_value))  # GT 메모리에 더하기
+            self.engine.input_buffer = str(self.engine.current_value)  # 결과를 input_buffer에 저장
 
         elif key == 'GT':
             self.state.status_display = f"메모리 GT 를 불러옵니다."
@@ -397,7 +405,7 @@ class Calculator:
         self.state.update_display()
         self.display.delete('1.0', tk.END)
         
-        display_value = self.state.display_value
+        display_value = self.engine.format_number(self.engine.current_value)
         parts = display_value.split('.')
         integer_part = parts[0].lstrip('0') or '0'  # 선행 zeros 제거, 비어있으면 '0'
         decimal_part = parts[1] if len(parts) > 1 else ""
@@ -427,10 +435,7 @@ class Calculator:
         
         # 디버깅용 출력문
         formatted_current_value = self.engine.format_number(self.engine.current_value)
-        print(f"""display_value: {self.state.display_value}, 
-                current_value: {formatted_current_value}, 
-                last_operator: {self.engine.last_operator}, 
-                last_operand: {self.engine.last_operand}""")
+        print(f"display_value: {self.state.display_value}, current_value: {formatted_current_value}, last_operator: {self.engine.last_operator}, last_operand: {self.engine.last_operand}")
 
     def adjust_font_size(self):
         current_width = self.display.winfo_width()
