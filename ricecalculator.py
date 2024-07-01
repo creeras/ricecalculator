@@ -421,7 +421,7 @@ class Calculator:
             if self.engine.operation:
                 result = self.engine.calculate_binary(self.engine.previous_value, self.engine.operation, current_value)
                 self.engine.current_value = result
-                self.state.current_entry += f" = {result}"
+                self.state.current_entry += f" → {result}"
 
         # Update the current entry with the new operator
         self.state.current_entry += f" {key}"
