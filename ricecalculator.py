@@ -548,8 +548,8 @@ class Calculator:
         
     def handle_gt(self):
         self.engine.current_value = self.engine.memory_gt_recall()
-        self.engine.input_buffer = str(self.engine.current_value)
         self.state.current_entry += f" Recall GT = {self.engine.current_value}"
+        self.engine.input_buffer = ""
         self.state.add_to_history()
         self.update_display()        
 
@@ -583,6 +583,7 @@ class Calculator:
         elif key == 'MR':
             self.engine.current_value = self.engine.memory_m_recall()
             self.state.current_entry += f" Recall M = {self.engine.current_value}"
+            self.engine.input_buffer = ""
         elif key == 'MC':
             self.engine.memory_m_clear()
             self.state.current_entry += " MC"
