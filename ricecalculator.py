@@ -673,18 +673,21 @@ class Calculator:
             # Update your memory indicator to show that memory is empty
             pass
 
-
     def show_previous_entry(self):
-        entry = self.state.get_previous_entry()
-        if entry:
-            self.status_display.delete(0, tk.END)
-            self.status_display.insert(0, entry)
+        if self.state.history_index > 0:
+            self.state.history_index -= 1
+            entry = self.state.calculation_history[self.state.history_index]
+            if entry:
+                self.status_display.delete(0, tk.END)
+                self.status_display.insert(0, entry)
 
     def show_next_entry(self):
-        entry = self.state.get_next_entry()
-        if entry:
-            self.status_display.delete(0, tk.END)
-            self.status_display.insert(0, entry)
+        if self.state.history_index < len(self.state.calculation_history) - 1:
+            self.state.history_index += 1
+            entry = self.state.calculation_history[self.state.history_index]
+            if entry:
+                self.status_display.delete(0, tk.END)
+                self.status_display.insert(0, entry)
 
     def adjust_font_size(self):
         current_width = self.display.winfo_width()
