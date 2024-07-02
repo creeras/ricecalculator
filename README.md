@@ -16,7 +16,7 @@
 - [x] 사칙연산 오입력 후 다른연산으로 교체
 - [x] 사칙연산 (상수계산-nonK)
 - [x] ▶ Del 키
-- [ ] 자릿수 셀렉터 Rounding_Mode, Decimal_places
+- [x] 자릿수 셀렉터 Rounding_Mode, Decimal_places
 - [x] 숫자 ÷ = 눌렀을 때 곱의 역수 나오도록 (현재는 나누기 상수연산이 되면서 숫자 ÷ 숫자 = 1 이 됨)
 - [x] %
 - [ ] TAX
