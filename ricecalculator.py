@@ -13,6 +13,10 @@ class CalculatorEngine:
         self.memory_m_clear()
         self.tax_rate = Decimal('10')  # Add this line
         self.tax_setting_mode = False  # Add this line
+        self.mode = 'M'  # 'M' for Memory mode, 'EX' for Exchange rate mode
+        self.exchange_rates = {'C1': Decimal('1'), 'C2': Decimal('1350'), 'C3': Decimal('160'), 'C4': Decimal('0.95')}
+        self.currency_symbols = {'C1': '$', 'C2': '₩', 'C3': '¥', 'C4': '€'}
+        self.last_exchange_key = None
 
     def clear_current(self):
         self.input_buffer = ""
@@ -201,6 +205,34 @@ class CalculatorEngine:
     def calculate_tax_minus(self):
         return self.current_value / (Decimal('1') + self.tax_rate/100)
 
+    # Exchange Mode 
+    def toggle_mode(self):
+        self.mode = 'EX' if self.mode == 'M' else 'M'
+
+    def get_mode(self):
+        return self.mode
+
+    def get_currency_symbol(self, key):
+        return self.currency_symbols.get(key, '')
+    
+    def set_exchange_rate(self, key, rate):
+        if key != 'C1':  # C1은 항상 1
+            self.exchange_rates[key] = Decimal(str(rate))
+
+    def get_exchange_rate(self, key):
+        return self.exchange_rates[key]
+
+    def calculate_exchange(self, current_value, from_key, to_key):
+        if from_key == to_key:
+            return current_value
+        return current_value * (self.exchange_rates[to_key] / self.exchange_rates[from_key])
+
+    def set_last_exchange_key(self, key):
+        self.last_exchange_key = key
+
+    def get_last_exchange_key(self):
+        return self.last_exchange_key
+
 class CalculatorState:
     def __init__(self, engine: CalculatorEngine):
         self.engine = engine
@@ -248,6 +280,7 @@ class Calculator:
         master.geometry("720x650")
         self.gt_button = None
         self.mr_button = None
+        self.memory_buttons = {}  # 메모리 버튼들을 저장할 딕셔너리
 
         self.engine = CalculatorEngine()
         self.state = CalculatorState(self.engine)
@@ -372,6 +405,9 @@ class Calculator:
         elif btn[0] == 'MR':
             self.mr_button = button
 
+        if btn[0] in ['M+', 'M-', 'MR', 'MC']:
+            self.memory_buttons[btn[0]] = button
+
 
     def update_memory_buttons(self):
         gt_memory = self.engine.memory_gt_recall()
@@ -390,33 +426,41 @@ class Calculator:
     def click(self, key):
         self.engine.count_click += 1
         print(f"#{self.engine.count_click:4}-1#, 【{key}】 , {self.engine.last_operand}, {self.engine.last_operator}, {self.engine.previous_value}, {self.engine.current_value},'{self.engine.input_buffer}'")
-        if key == 'allcalc.org':
-            self.copy_history_to_clipboard()
-            self.engine.count_click -=1
-        if key.isdigit() or key == '.':
-            self.handle_number_input(key)
-        elif key == '▶':
-            self.engine.backspace()
-        elif key in ['+', '-', '×', '÷']:
-            self.handle_operator(key)
-        elif key == '=':
-            self.handle_equals()
-        elif key == 'GT':
-            self.handle_gt()
-        elif key in ['C', 'AC']:
-            self.handle_clear(key)
-        elif key == '+/-':
-            self.engine.change_sign()
-        elif key == '%':
-            self.handle_percentage()
-        elif key == '√':
-            self.handle_square_root()
-        elif key in ['M+', 'M-', 'MR', 'MC']:
-            self.handle_memory_m(key)
-        elif key == 'TAX+':
-            self.handle_tax_plus()        
-        elif key == 'TAX-':
-            self.handle_tax_minus()       
+
+        if key == 'M/EX':
+            self.handle_mode_toggle()
+        elif self.engine.get_mode() == 'EX' and key in ['M+', 'M-', 'MR', 'MC']:
+            self.handle_exchange_rate(key)
+        else:
+            self.engine.set_last_exchange_key(None)  # 환율 키가 아닌 경우 마지막 환율 키 초기화
+            if key == 'allcalc.org':
+                self.copy_history_to_clipboard()
+                self.engine.count_click -=1
+            elif key.isdigit() or key == '.':
+                self.handle_number_input(key)
+            elif key == '▶':
+                self.engine.backspace()
+            elif key in ['+', '-', '×', '÷']:
+                self.handle_operator(key)
+            elif key == '=':
+                self.handle_equals()
+            elif key == 'GT':
+                self.handle_gt()
+            elif key in ['C', 'AC']:
+                self.handle_clear(key)
+            elif key == '+/-':
+                self.engine.change_sign()
+            elif key == '%':
+                self.handle_percentage()
+            elif key == '√':
+                self.handle_square_root()
+            elif key in ['M+', 'M-', 'MR', 'MC']:
+                self.handle_memory_m(key)
+            elif key == 'TAX+':
+                self.handle_tax_plus()        
+            elif key == 'TAX-':
+                self.handle_tax_minus()
+
         
         self.engine.last_button = key
         print(f"#{self.engine.count_click:4}-2#, 【{key}】 , {self.engine.last_operand}, {self.engine.last_operator}, {self.engine.previous_value}, {self.engine.current_value},'{self.engine.input_buffer}'")
@@ -680,6 +724,56 @@ class Calculator:
         self.engine.update_after_equals()
         self.engine.input_buffer = ""
         self.state.update_display()
+
+    def handle_mode_toggle(self):
+        self.engine.toggle_mode()
+        mode = self.engine.get_mode()
+        if mode == 'EX':
+            self.update_button_text('M+', 'C1')
+            self.update_button_text('M-', 'C2')
+            self.update_button_text('MR', 'C3')
+            self.update_button_text('MC', 'C4')
+            self.state.status_display = (
+                f"Exchange mode: "
+                f"C1($)=1, "
+                f"C2(₩)={self.engine.get_exchange_rate('C2')}, "
+                f"C3(¥)={self.engine.get_exchange_rate('C3')}, "
+                f"C4(€)={self.engine.get_exchange_rate('C4')}"
+            )
+        else:
+            self.update_button_text('C1', 'M+')
+            self.update_button_text('C2', 'M-')
+            self.update_button_text('C3', 'MR')
+            self.update_button_text('C4', 'MC')
+            self.state.status_display = "Mode changed to Memory"
+        self.update_display()
+
+    def update_button_text(self, old_text, new_text):
+        button = self.memory_buttons.get(old_text) or self.memory_buttons.get(new_text)
+        if button:
+            button.config(text=new_text)
+            self.memory_buttons[new_text] = self.memory_buttons.pop(old_text, button)
+
+    def handle_exchange_rate(self, key):
+        exchange_key = key.replace('M+', 'C1').replace('M-', 'C2').replace('MR', 'C3').replace('MC', 'C4')
+        last_key = self.engine.get_last_exchange_key()
+        currency_symbol = self.engine.get_currency_symbol(exchange_key)
+        
+        if last_key not in ['C1', 'C2', 'C3', 'C4']:
+            # 직전 키가 환율 키가 아닌 경우
+            result = self.engine.calculate_exchange(self.engine.current_value, exchange_key, exchange_key)
+            self.state.current_entry += f" {exchange_key}({currency_symbol}) = {result}"
+        else:
+            # 직전 키가 환율 키인 경우
+            result = self.engine.calculate_exchange(self.engine.current_value, last_key, exchange_key)
+            last_currency_symbol = self.engine.get_currency_symbol(last_key)
+            self.state.current_entry += f" {exchange_key}({currency_symbol}) = {result}"
+        
+        self.engine.current_value = result
+        self.engine.set_last_exchange_key(exchange_key)
+        self.state.add_to_history()
+        self.update_display()
+
 
     def update_display(self):
         self.state.update_display()
