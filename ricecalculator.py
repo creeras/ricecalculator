@@ -1,7 +1,7 @@
 import math
 import tkinter as tk
 from tkinter import font as tkfont
-from decimal import Decimal, getcontext
+from decimal import Decimal, getcontext, localcontext, ROUND_DOWN, ROUND_HALF_UP
 
 class CalculatorEngine:
     def __init__(self):
@@ -67,8 +67,16 @@ class CalculatorEngine:
         else:
             raise ValueError("Cannot divide by zero")
 
-    def square_root(self, value: Decimal):
-        return Decimal(math.sqrt(value))
+    def square_root(self, value: Decimal) -> Decimal:
+        with localcontext() as ctx:
+            ctx.prec = getcontext().prec
+            result = value.sqrt()
+            if self.rounding_mode == 'F':
+                return result
+            elif self.rounding_mode == 'Cut':
+                return result.quantize(Decimal('1.' + '0' * int(self.decimal_places)), rounding=ROUND_DOWN)
+            elif self.rounding_mode == '5/4':
+                return result.quantize(Decimal('1.' + '0' * int(self.decimal_places)), rounding=ROUND_HALF_UP)
 
     def apply_percentage(self):
         if self.operation is None:
@@ -460,6 +468,15 @@ class Calculator:
                 self.state.current_entry += " = Error (Division by zero)"
                 self.engine.current_value = Decimal('0')
         elif self.engine.operation:
+
+            # 루트 연산이 포함된 경우를 처리
+            if "√" in self.state.current_entry:
+                parts = self.state.current_entry.split()
+                if len(parts) >= 3 and parts[-2] == '=':
+                    # 루트 계산 결과가 이미 있는 경우
+                    root_result = Decimal(parts[-1])
+                    self.state.current_entry = f"{self.engine.previous_value} {self.engine.operation} {root_result}"
+
             result = self.engine.calculate_binary(self.engine.previous_value, self.engine.operation, current_value)
             self.engine.current_value = result
             self.state.current_entry += f" = {result}"
@@ -571,9 +588,16 @@ class Calculator:
         self.update_memory_buttons()
 
     def handle_square_root(self):
-        self.engine.current_value = self.engine.square_root(self.engine.current_value)
-        self.engine.input_buffer = str(self.engine.current_value)
-        self.state.status_display = f"√{self.engine.current_value}"
+        if self.engine.input_buffer:
+            value = Decimal(self.engine.input_buffer)
+        else:
+            value = self.engine.current_value
+        result = self.engine.square_root(value)
+        self.engine.current_value = result
+        self.engine.input_buffer = ""
+        self.state.current_entry += f" (√{value} = {result})"
+        self.state.add_to_history()
+        self.update_display()
 
     def handle_memory_m(self, key):
         if key == 'M+':
