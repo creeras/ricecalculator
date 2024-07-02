@@ -11,6 +11,8 @@ class CalculatorEngine:
         self.reset_state()
         self.memory_gt_clear()
         self.memory_m_clear()
+        self.tax_rate = Decimal('10')  # Add this line
+        self.tax_setting_mode = False  # Add this line
 
     def clear_current(self):
         self.input_buffer = ""
@@ -22,7 +24,7 @@ class CalculatorEngine:
         self.current_value = Decimal('0')
         self.previous_value = None
         self.operation = None
-        self.last_button = None
+        self.last_button = 'AC'
         self.last_operand = None
         self.last_operator = None
         self.last_other_operand = None
@@ -186,6 +188,18 @@ class CalculatorEngine:
         self.previous_value = None
         self.operation = None
         self.input_buffer = str(self.current_value)
+
+    # Add a new method to set the tax rate
+    def set_tax_rate(self, rate):
+        self.tax_rate = Decimal(rate)
+        self.tax_setting_mode = False
+
+    # Add methods to calculate tax
+    def calculate_tax_plus(self):
+        return self.current_value * (Decimal('1') + self.tax_rate/100)
+
+    def calculate_tax_minus(self):
+        return self.current_value / (Decimal('1') + self.tax_rate/100)
 
 class CalculatorState:
     def __init__(self, engine: CalculatorEngine):
@@ -399,6 +413,10 @@ class Calculator:
             self.handle_square_root()
         elif key in ['M+', 'M-', 'MR', 'MC']:
             self.handle_memory_m(key)
+        elif key == 'TAX+':
+            self.handle_tax_plus()        
+        elif key == 'TAX-':
+            self.handle_tax_minus()       
         
         self.engine.last_button = key
         print(f"#{self.engine.count_click:4}-2#, 【{key}】 , {self.engine.last_operand}, {self.engine.last_operator}, {self.engine.previous_value}, {self.engine.current_value},'{self.engine.input_buffer}'")
@@ -417,6 +435,8 @@ class Calculator:
         self.state.update_display()
 
     def handle_operator(self, key):
+        self.engine.tax_setting_mode = False
+
         if self.engine.input_buffer:
             current_value = Decimal(self.engine.input_buffer)
             self.state.current_entry += f" {self.engine.input_buffer}"
@@ -455,6 +475,8 @@ class Calculator:
         self.state.update_display()
 
     def handle_equals(self):
+        self.engine.tax_setting_mode = False
+
         if self.engine.input_buffer:
             current_value = Decimal(self.engine.input_buffer)
             self.state.current_entry += f" {self.engine.input_buffer}"
@@ -630,6 +652,34 @@ class Calculator:
             result = self.engine.calculate_binary(self.engine.previous_value, self.engine.operation, current_value)
             self.engine.current_value = result
             self.engine.input_buffer = ""
+
+    def handle_tax_plus(self):
+        if self.engine.last_button == 'AC':
+            self.engine.tax_setting_mode = True
+            self.state.current_entry = f"Tax Rate(%) 입력 후,【VAT+】를 누르세요..."
+        elif self.engine.tax_setting_mode:
+            self.engine.set_tax_rate(self.engine.input_buffer)
+            self.engine.input_buffer = ""
+            self.state.current_entry = ""
+            self.engine.tax_setting_mode = False
+        else:
+            self.engine.tax_setting_mode = False
+            self.engine.current_value = self.engine.calculate_tax_plus()
+            self.state.current_entry += f" TAX *= {self.engine.current_value}"
+            self.state.status_display = self.state.current_entry
+            self.state.add_to_history()        
+            self.engine.update_after_equals()
+            self.engine.input_buffer = ""
+            self.state.update_display()
+
+    def handle_tax_minus(self):
+        self.engine.current_value = self.engine.calculate_tax_minus()
+        self.state.current_entry += f" TAX ÷= {self.engine.current_value}"
+        self.state.status_display = self.state.current_entry
+        self.state.add_to_history()
+        self.engine.update_after_equals()
+        self.engine.input_buffer = ""
+        self.state.update_display()
 
     def update_display(self):
         self.state.update_display()
