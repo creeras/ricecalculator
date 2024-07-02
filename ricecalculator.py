@@ -398,6 +398,8 @@ class Calculator:
             self.engine.reset_input()
             if self.state.current_entry.endswith('='):
                 self.state.current_entry = ""
+        if self.engine.input_buffer == "" and key == '.':
+            self.engine.input_buffer = "0"
         if key == '.' and '.' in self.engine.input_buffer:
             return
         self.engine.append_to_input(key)
