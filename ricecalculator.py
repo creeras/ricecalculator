@@ -376,6 +376,9 @@ class Calculator:
     def click(self, key):
         self.engine.count_click += 1
         print(f"#{self.engine.count_click:4}-1#, 【{key}】 , {self.engine.last_operand}, {self.engine.last_operator}, {self.engine.previous_value}, {self.engine.current_value},'{self.engine.input_buffer}'")
+        if key == 'allcalc.org':
+            self.copy_history_to_clipboard()
+            self.engine.count_click -=1
         if key.isdigit() or key == '.':
             self.handle_number_input(key)
         elif key == '▶':
@@ -712,6 +715,14 @@ class Calculator:
     def change_decimal_places(self, value):
         modes = ['4', '3', '2', '1', '0', 'Add2']
         self.engine.set_decimal_places(modes[int(value)])
+        self.update_display()
+
+    def copy_history_to_clipboard(self):
+        history_text = "\n".join(self.state.calculation_history)
+        self.master.clipboard_clear()
+        self.master.clipboard_append(history_text)
+        self.master.update()  # 클립보드 작업이 완료되도록 보장합니다
+        self.state.status_display = "계산 기록이 클립보드에 복사되었습니다."
         self.update_display()
 
 def main():
