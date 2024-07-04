@@ -762,12 +762,12 @@ class Calculator:
         if last_key not in ['C1', 'C2', 'C3', 'C4']:
             # 직전 키가 환율 키가 아닌 경우
             result = self.engine.calculate_exchange(self.engine.current_value, exchange_key, exchange_key)
-            self.state.current_entry += f" {exchange_key}({currency_symbol}) = {result}"
+            self.state.current_entry += f" {exchange_key}({currency_symbol}) = {result} 환전 → "
         else:
             # 직전 키가 환율 키인 경우
             result = self.engine.calculate_exchange(self.engine.current_value, last_key, exchange_key)
             last_currency_symbol = self.engine.get_currency_symbol(last_key)
-            self.state.current_entry += f" {exchange_key}({currency_symbol}) = {result}"
+            self.state.current_entry += f" → {exchange_key}({currency_symbol}) = {result}"
         
         self.engine.current_value = result
         self.engine.set_last_exchange_key(exchange_key)
@@ -781,14 +781,29 @@ class Calculator:
         
         display_value = self.engine.format_number(self.engine.current_value)
         parts = display_value.split('.')
-        integer_part = parts[0].lstrip('0') or '0'
+        integer_part = parts[0]
         decimal_part = parts[1] if len(parts) > 1 else ""
 
+        # 음수 처리
+        is_negative = integer_part.startswith('-')
+        if is_negative:
+            integer_part = integer_part[1:]  # 음수 부호 제거
+
+        # 천 단위 구분자 추가
+        formatted_integer = ""
         for i, char in enumerate(reversed(integer_part)):
             if i > 0 and i % 3 == 0:
-                self.display.insert('1.0', ',', 'separator')
-            self.display.insert('1.0', char)
+                formatted_integer = ',' + formatted_integer
+            formatted_integer = char + formatted_integer
 
+        # 음수 부호 다시 추가 (필요한 경우)
+        if is_negative:
+            formatted_integer = '-' + formatted_integer
+
+        # 정수 부분 삽입
+        self.display.insert('1.0', formatted_integer)
+
+        # 소수점 및 소수 부분 삽입
         if decimal_part:
             self.display.insert(tk.END, '.')
             for char in decimal_part:
