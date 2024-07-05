@@ -17,6 +17,7 @@ class CalculatorEngine:
         self.exchange_rates = {'C1': Decimal('1'), 'C2': Decimal('1350'), 'C3': Decimal('160'), 'C4': Decimal('0.95')}
         self.currency_symbols = {'C1': '$', 'C2': '₩', 'C3': '¥', 'C4': '€'}
         self.last_exchange_key = None
+        self.exchange_setting_mode = None
 
     def clear_current(self):
         self.input_buffer = ""
@@ -430,7 +431,7 @@ class Calculator:
         if key == 'M/EX':
             self.handle_mode_toggle()
         elif self.engine.get_mode() == 'EX' and key in ['M+', 'M-', 'MR', 'MC']:
-            self.handle_exchange_rate(key)
+            self.handle_exchange_action(key)
         else:
             self.engine.set_last_exchange_key(None)  # 환율 키가 아닌 경우 마지막 환율 키 초기화
             if key == 'allcalc.org':
@@ -461,7 +462,6 @@ class Calculator:
             elif key == 'TAX-':
                 self.handle_tax_minus()
 
-        
         self.engine.last_button = key
         print(f"#{self.engine.count_click:4}-2#, 【{key}】 , {self.engine.last_operand}, {self.engine.last_operator}, {self.engine.previous_value}, {self.engine.current_value},'{self.engine.input_buffer}'")
         self.update_display()
@@ -641,8 +641,6 @@ class Calculator:
         self.state.add_to_history()
         self.update_display()        
 
-
-
     def handle_clear(self, key):
         if key == 'C':
             self.engine.clear_current()
@@ -685,8 +683,7 @@ class Calculator:
         self.state.add_to_history()
         self.update_display()
         self.update_memory_buttons()
-
-
+        
     def perform_calculation(self):
         if self.engine.operation and self.engine.previous_value is not None:
             if self.engine.input_buffer:
@@ -754,23 +751,57 @@ class Calculator:
             button.config(text=new_text)
             self.memory_buttons[new_text] = self.memory_buttons.pop(old_text, button)
 
-    def handle_exchange_rate(self, key):
+
+    def handle_exchange_action(self, key):
         exchange_key = key.replace('M+', 'C1').replace('M-', 'C2').replace('MR', 'C3').replace('MC', 'C4')
+        
+        if self.engine.last_button == 'AC':
+            self.handle_exchange_set(exchange_key)
+        elif self.engine.exchange_setting_mode:
+            self.handle_exchange_rate_set(exchange_key)
+        else:
+            self.handle_exchange_rate(exchange_key)
+
+    def handle_exchange_set(self, key):
+        if key == 'C1':
+            self.state.status_display = "1$ 기준 환률 고정"
+        elif key == 'C2':
+            self.state.status_display = "₩/$ 입력 후 C2로 저장"
+            self.engine.exchange_setting_mode = 'C2'
+        elif key == 'C3':
+            self.state.status_display = "¥/$ 입력 후 C3로 저장"
+            self.engine.exchange_setting_mode = 'C3'
+        elif key == 'C4':
+            self.state.status_display = "€/$ 입력 후 C4로 저장"
+            self.engine.exchange_setting_mode = 'C4'
+        
+        self.update_display()
+
+    def handle_exchange_rate_set(self, key):
+        if key == self.engine.exchange_setting_mode:
+            self.engine.set_exchange_rate(key, Decimal(self.engine.input_buffer))
+            self.state.status_display = f"{key} 환률이 {self.engine.input_buffer}로 설정되었습니다."
+            self.engine.exchange_setting_mode = None
+            self.engine.input_buffer = ""
+        else:
+            self.handle_exchange_rate(key)
+
+    def handle_exchange_rate(self, key):
         last_key = self.engine.get_last_exchange_key()
-        currency_symbol = self.engine.get_currency_symbol(exchange_key)
+        currency_symbol = self.engine.get_currency_symbol(key)
         
         if last_key not in ['C1', 'C2', 'C3', 'C4']:
             # 직전 키가 환율 키가 아닌 경우
-            result = self.engine.calculate_exchange(self.engine.current_value, exchange_key, exchange_key)
-            self.state.current_entry += f" {exchange_key}({currency_symbol}) = {result} 환전 → "
+            result = self.engine.calculate_exchange(self.engine.current_value, key, key)
+            self.state.current_entry += f" {key}({currency_symbol}) = {result} 환전 → "
         else:
             # 직전 키가 환율 키인 경우
-            result = self.engine.calculate_exchange(self.engine.current_value, last_key, exchange_key)
+            result = self.engine.calculate_exchange(self.engine.current_value, last_key, key)
             last_currency_symbol = self.engine.get_currency_symbol(last_key)
-            self.state.current_entry += f" → {exchange_key}({currency_symbol}) = {result}"
+            self.state.current_entry += f" → {key}({currency_symbol}) = {result}"
         
         self.engine.current_value = result
-        self.engine.set_last_exchange_key(exchange_key)
+        self.engine.set_last_exchange_key(key)
         self.state.add_to_history()
         self.update_display()
 
