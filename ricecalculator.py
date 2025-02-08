@@ -667,6 +667,10 @@ class Calculator:
         self.update_display()
 
     def handle_memory_m(self, key):
+        # 미결 연산이 있으면 먼저 계산 수행
+        if self.engine.operation and self.engine.previous_value is not None:
+            self.perform_calculation()
+
         if key == 'M+':
             self.engine.memory_m_add(self.engine.current_value)
             self.state.current_entry += f" M += {self.engine.current_value}"
