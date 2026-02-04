@@ -40,6 +40,7 @@ class CalculatorEngineV2:
         self.m_updated = False  # Flag for UI to flash MR button
         self.percentage_base = None # Track principal or profit amount
         self.last_percent_op = None # Track if last % was from *, /, +, or -
+        self.last_k_input = None # Store input B for K-mode % repetition sequence
 
     def format_number(self, number: Decimal) -> str:
         # Avoid scientific notation and handle trailing zeros
@@ -173,7 +174,9 @@ class CalculatorEngineV2:
                     res = self.percentage_base
                     self.percentage_base = None # Consume it
                     self.display_value = res 
-                    print(f"DEBUG: Resolve Delta Display. Result={res}")
+                    # Transition to simple arithmetic repetition for subsequent =
+                    self.constant_op = self.constant_op[0] # Convert '+%' to '+' or '-%' to '-'
+                    print(f"DEBUG: Resolve Delta Display & Transition. Result={res}, New constant_op={self.constant_op}")
                     return res
                 
                 print(f"DEBUG: Resolve Constant Op. op={self.constant_op}, val={self.constant_val}, display={self.display_value}")
@@ -193,6 +196,27 @@ class CalculatorEngineV2:
     def percent(self):
         print(f"DEBUG: percent() start. mode={self.calc_mode}, stack={self.stack}, constant={self.constant_op}({self.constant_val}), display={self.display_value}")
         
+        # 1. Non-K Repeated Lock
+        if self.last_button == '%' and self.calc_mode == 'NON_K':
+            print("DEBUG: Repeated % in NON_K mode - Ignored")
+            return
+
+        # 2. K-Mode Constant Logic (Prioritized over stack, handles both start and repeat)
+        if self.calc_mode == 'K' and self.is_k_active and self.constant_op == '-':
+             if self.constant_val == 0:
+                 self.display_value = Decimal('NaN')
+             else:
+                 self.display_value = (self.display_value - self.constant_val) / self.constant_val * 100
+             
+             self.is_entering_number = False
+             self.last_button = '%'
+             print(f"DEBUG: K-Mode Constant % Result={self.display_value}")
+             return
+
+        # 3. Normal K-Mode Repeated Lock (if not handled by constant logic above)
+        if self.last_button == '%' and self.calc_mode == 'K':
+            return
+
         # If no stack but we have a constant op (SHARP style chain)
         if not self.stack and self.calc_mode == 'NON_K' and self.constant_op in ['×', '÷%', '+%', '-%']:
             # Handle continuous % chain in SHARP mode
