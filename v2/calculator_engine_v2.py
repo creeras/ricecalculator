@@ -38,6 +38,8 @@ class CalculatorEngineV2:
         self.last_button = None
         self.gt_updated = False # Flag for UI to flash GT button
         self.m_updated = False  # Flag for UI to flash MR button
+        self.percentage_base = None # Track principal or profit amount
+        self.last_percent_op = None # Track if last % was from *, /, +, or -
 
     def format_number(self, number: Decimal) -> str:
         # Avoid scientific notation and handle trailing zeros
@@ -116,6 +118,26 @@ class CalculatorEngineV2:
             
         self.stack = [(self.display_value, op)]
         self.is_k_active = False # New operator always clears K unless it's a double-tap
+        
+        # CASIO special: chain operations after % 
+        if self.calc_mode == 'K' and self.percentage_base is not None and self.last_button == '%':
+            if op in ['+', '-']:
+                if self.last_percent_op == '×':
+                    # Add-on/Discount: A + (A*B/100) or A - (A*B/100)
+                    self.display_value = self._perform_op(self.percentage_base, op, self.display_value)
+                elif self.last_percent_op == '+':
+                    # Markup result: pressing '-' shows profit (already stored in percentage_base)
+                    if op == '-':
+                        self.display_value = self.percentage_base
+                
+                self.percentage_base = None # Consume it
+                self.last_percent_op = None
+                self.stack = [] # Terminate chain: result is final for this sequence
+                self.is_entering_number = False
+                self.last_button = op
+                print(f"DEBUG: CASIO % Chain (Resolved). Display={self.display_value}, Stack Cleared")
+                return
+
         self.last_button = op
         print(f"DEBUG: set_operator() end. stack={self.stack}")
 
@@ -147,15 +169,107 @@ class CalculatorEngineV2:
             return self.display_value
         elif self.constant_op:
             if self.calc_mode == 'NON_K':
-                self.display_value = self._perform_op(self.display_value, self.constant_op, self.constant_val)
+                if self.constant_op == '+%':
+                    self.display_value = self.constant_val + (self.constant_val * self.display_value / 100)
+                elif self.constant_op == '-%':
+                    self.display_value = self.constant_val - (self.constant_val * self.display_value / 100)
+                elif self.constant_op == '÷%':
+                    self.display_value = (self.display_value / self.constant_val) * 100
+                else:
+                    self.display_value = self._perform_op(self.display_value, self.constant_op, self.constant_val)
                 return self.display_value
         
         return self.display_value
+
+    def percent(self):
+        print(f"DEBUG: percent() start. mode={self.calc_mode}, stack={self.stack}, constant={self.constant_op}({self.constant_val}), display={self.display_value}")
+        
+        # If no stack but we have a constant op (SHARP style chain)
+        if not self.stack and self.calc_mode == 'NON_K' and self.constant_op in ['×', '÷%', '+%', '-%']:
+            # Handle continuous % chain in SHARP mode
+            A = self.constant_val
+            B = self.display_value
+            op = self.constant_op[0] if len(self.constant_op) > 1 else self.constant_op
+            
+            if op == '×': result = A * B / 100
+            elif op == '÷': result = (B / A) * 100 # In SHARP, divisor is constant
+            elif op == '+': result = A + (A * B / 100)
+            elif op == '-': result = A - (A * B / 100)
+            else: result = self.display_value
+            
+            self.display_value = result
+            if not result.is_nan():
+                self.memory_gt += result
+                self.gt_updated = True
+            self.is_entering_number = False
+            self.last_button = '%'
+            print(f"DEBUG: percent() chain end. Result={result}")
+            return
+
+        if not self.stack:
+            # No base, just convert display to percentage
+            self.display_value = self.display_value / 100
+            self.is_entering_number = False
+            return
+
+        A, op = self.stack.pop()
+        B = self.display_value
+        result = self.display_value
+        
+        if self.calc_mode == 'NON_K':
+            # SHARP Style
+            if op == '×':
+                result = A * B / 100
+                self.constant_op = '×'
+                self.constant_val = A
+            elif op == '÷':
+                result = (A / B) * 100
+                self.constant_op = '÷%' # Special label for repeated % div
+                self.constant_val = B
+            elif op == '+':
+                result = A + (A * B / 100)
+                self.constant_op = '+%'
+                self.constant_val = A
+            elif op == '-':
+                result = A - (A * B / 100)
+                self.constant_op = '-%'
+                self.constant_val = A
+        else:
+            # CASIO Style
+            self.last_percent_op = op # Store the trigger op
+            if op == '×':
+                result = A * B / 100
+                self.percentage_base = A # Store principal for subsequent + or -
+            elif op == '÷':
+                result = (A / B) * 100
+            elif op == '+':
+                # Markup: A / (1 - B/100)
+                if B == 100: result = Decimal('NaN')
+                else: result = A / (1 - B / 100)
+                self.percentage_base = result - A # Profit amount for subsequent -
+                self.constant_val = A # Base for verification
+            elif op == '-':
+                # Margin: (A - B) / B * 100
+                if B == 0: result = Decimal('NaN')
+                else: result = (A - B) / B * 100
+
+        self.display_value = result
+        self.is_entering_number = False
+        self.last_button = '%'
+        
+        # Note: Non-K mode % acts as a terminator like =, adding to GT.
+        if self.calc_mode == 'NON_K' and not result.is_nan():
+            self.memory_gt += result
+            self.gt_updated = True
+
+        print(f"DEBUG: percent() end. Result={result}")
 
     def equals(self):
         print(f"DEBUG: equals() start. mode={self.calc_mode}, k_active={self.is_k_active}, display={self.display_value}")
         
         # Calculate result
+        self.percentage_base = None 
+        self.last_percent_op = None
         result = self._resolve_pending_operation()
         
         # In equals(), we ALWAYS update GT

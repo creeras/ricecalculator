@@ -174,8 +174,7 @@ class RiceCalculatorV2:
         elif key == 'TAX-':
             self.engine.tax_minus()
         elif key == '%':
-            # Implement simple percentage
-            self.engine.display_value = self.engine.display_value / 100
+            self.engine.percent()
         
         self.update_display()
 
