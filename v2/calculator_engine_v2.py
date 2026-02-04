@@ -169,6 +169,15 @@ class CalculatorEngineV2:
             return self.display_value
         elif self.constant_op:
             if self.calc_mode == 'NON_K':
+                if self.last_button == '%' and self.constant_op in ['+%', '-%'] and self.percentage_base is not None:
+                    res = self.percentage_base
+                    self.percentage_base = None # Consume it
+                    self.display_value = res 
+                    print(f"DEBUG: Resolve Delta Display. Result={res}")
+                    return res
+                
+                print(f"DEBUG: Resolve Constant Op. op={self.constant_op}, val={self.constant_val}, display={self.display_value}")
+                
                 if self.constant_op == '+%':
                     self.display_value = self.constant_val + (self.constant_val * self.display_value / 100)
                 elif self.constant_op == '-%':
@@ -227,13 +236,17 @@ class CalculatorEngineV2:
                 self.constant_op = '÷%' # Special label for repeated % div
                 self.constant_val = B
             elif op == '+':
-                result = A + (A * B / 100)
+                delta = A * B / 100
+                result = A + delta
                 self.constant_op = '+%'
                 self.constant_val = A
+                self.percentage_base = delta # Store delta for '=' key
             elif op == '-':
-                result = A - (A * B / 100)
+                delta = A * B / 100
+                result = A - delta
                 self.constant_op = '-%'
                 self.constant_val = A
+                self.percentage_base = -delta # Store negative delta for '=' key
         else:
             # CASIO Style
             self.last_percent_op = op # Store the trigger op
@@ -267,13 +280,15 @@ class CalculatorEngineV2:
     def equals(self):
         print(f"DEBUG: equals() start. mode={self.calc_mode}, k_active={self.is_k_active}, display={self.display_value}")
         
+        # Check if this is a special delta display case for Non-K
+        is_delta_case = (self.calc_mode == 'NON_K' and self.last_button == '%' and self.constant_op in ['+%', '-%'])
+
         # Calculate result
-        self.percentage_base = None 
-        self.last_percent_op = None
         result = self._resolve_pending_operation()
+        self.display_value = result # EXPLICITLY ensuring display is updated
         
-        # In equals(), we ALWAYS update GT
-        if result is not None and not result.is_nan():
+        # Update GT ONLY if it's NOT just a delta inspection
+        if not is_delta_case and result is not None and not result.is_nan():
             self.memory_gt += result
             self.gt_updated = True
             print(f"DEBUG: GT updated. added {result}, total_gt {self.memory_gt}")
@@ -281,11 +296,11 @@ class CalculatorEngineV2:
         self.is_entering_number = False
         self.last_button = '='
         self.input_buffer = ""
-        print(f"DEBUG: equals() end. display={self.display_value}")
-            
-        self.is_entering_number = False
-        self.last_button = '='
-        self.input_buffer = ""
+
+        # Clear percentage related states ONLY AFTER resolution
+        self.percentage_base = None 
+        self.last_percent_op = None
+
         print(f"DEBUG: equals() end. display={self.display_value}")
 
     def clear(self):
